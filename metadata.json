@@ -1,0 +1,8 @@
+{
+  "name": "Remix نادي منبر الشاب المبدع – سوق أهراس",
+  "description": "الموقع الرسمي لنادي منبر الشاب المبدع – سوق أهراس، الجزائر. شباب يبدع، يبادر، ويصنع التغيير.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
