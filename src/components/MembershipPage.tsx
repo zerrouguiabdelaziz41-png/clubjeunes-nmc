@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   Home,
   Users,
@@ -77,6 +77,10 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({
   const [registeredMemberNumber, setRegisteredMemberNumber] = useState<string>('');
   const [needsEmailConfirmation, setNeedsEmailConfirmation] = useState(false);
   const [photoUploadDeferred, setPhotoUploadDeferred] = useState(false);
+
+  useEffect(() => () => {
+    if (photoPreview.startsWith('blob:')) URL.revokeObjectURL(photoPreview);
+  }, [photoPreview]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
