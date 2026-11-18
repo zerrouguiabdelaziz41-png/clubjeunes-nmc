@@ -165,16 +165,21 @@ export const AdminModulesPanel: React.FC = () => {
   const setCommitteeChair = async (committeeId:string,memberId:string) => {
     if (!client) return;
     setBusy(true); setError(''); setNotice('');
+    const committee=committees.find((x:any)=>x.id===committeeId);
+    const targetMember=committee?.members.find((x:any)=>x.id===memberId);
+    if (!targetMember?.user_id || !targetMember.is_active) {
+      setError('لا يمكن تعيين رئيس إلا من بين أعضاء اللجنة النشطين.');
+      setBusy(false);
+      return;
+    }
     const {error:demoteError} = await client.from('committee_members').update({committee_role:'member'}).eq('committee_id',committeeId).eq('committee_role','chair').eq('is_active',true);
     if (demoteError) {setError(demoteError.message);setBusy(false);return;}
     const {error:promoteError} = await client.from('committee_members').update({committee_role:'chair',is_active:true}).eq('id',memberId);
-    if (promoteError) setError(promoteError.message);
+    if (promoteError) setError('تعذّر تعيين الرئيس الجديد بعد إلغاء التعيين السابق: '+promoteError.message);
     else {
-      const committee=committees.find((x:any)=>x.id===committeeId);
-      const targetMember=committee?.members.find((x:any)=>x.id===memberId);
-      const chair=people.find((p:any)=>p.id===targetMember?.user_id);
-      const {error:chairError}=await client.from('committees').update({chair_user_id:targetMember?.user_id,chair_name:chair?.full_name||null,updated_at:new Date().toISOString()}).eq('id',committeeId);
-      if (chairError) setError('تم تعيين الرئيس في سجل الأعضاء لكن تعذر تحديث بيانات اللجنة: '+chairError.message);
+      const chair=people.find((p:any)=>p.id===targetMember.user_id);
+      const {error:chairError}=await client.from('committees').update({chair_user_id:targetMember.user_id,chair_name:chair?.full_name||null,updated_at:new Date().toISOString()}).eq('id',committeeId);
+      if (chairError) setError('تم تحديث دور الرئيس، لكن تعذر تحديث بيانات اللجنة: '+chairError.message);
       else setNotice('تم تحديث رئيس اللجنة.');
     }
     await load(); setBusy(false);
@@ -187,12 +192,15 @@ export const AdminModulesPanel: React.FC = () => {
     const {error:e} = await client.from('committee_members').update({is_active:!isActive}).eq('id',id);
     if (e) setError(e.message);
     else {
-      if (member?.committee_role==='chair') {
+      let chairSyncError = '';
+      if (member?.committee_role==='chair' && committee) {
         const chair=people.find((p:any)=>p.id===member.user_id);
         const {error:chairError}=await client.from('committees').update({chair_user_id:isActive?null:member.user_id,chair_name:isActive?null:(chair?.full_name||null),updated_at:new Date().toISOString()}).eq('id',committee.id);
-        if (chairError) setError(chairError.message);
+        if (chairError) chairSyncError = 'تم تحديث حالة العضوية، لكن تعذر مزامنة بيانات رئيس اللجنة: '+chairError.message;
       }
-      setNotice('تم تحديث حالة عضوية اللجنة.'); await load();
+      if (chairSyncError) setError(chairSyncError);
+      else setNotice('تم تحديث حالة عضوية اللجنة.');
+      await load();
     }
     setBusy(false);
   };
