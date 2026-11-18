@@ -7,6 +7,7 @@ import { AdminModulesPanel } from './AdminModulesPanel.tsx';
 import { ProjectTasksPanel } from './ProjectTasksPanel.tsx';
 import { CourseEnrollmentPanel } from './CourseEnrollmentPanel.tsx';
 import { MemberMeetingsPanel } from './MemberMeetingsPanel.tsx';
+import { MemberTasksPanel } from './MemberTasksPanel.tsx';
 
 type Role = 'member' | 'organizer' | 'admin';
 type Profile = { id: string; membership_number?: string | null; full_name: string; phone: string | null; interests: string | null; role: Role; membership_status: 'pending' | 'approved' | 'rejected' | 'revoked'; created_at: string };
@@ -269,7 +270,7 @@ export const AccountPage: React.FC<Props> = ({ onBackToHome, onOpenCardModal, on
           <div className="rounded-2xl border border-cyan-900 bg-[#06182c] p-5"><h3 className="font-bold flex items-center gap-2 mb-3"><CalendarDays className="text-amber-400"/> {profile.role==='member'?'تسجيلاتي في الأنشطة':'الأنشطة المسندة'}</h3>
             {profile.role==='member' ? registrations.length ? registrations.map((r:any)=><p key={r.id} className="text-sm border-t border-cyan-950 py-2">{r.activities?.title || 'نشاط'} — {r.status}</p>) : <p className="text-sm text-slate-400">لا توجد تسجيلات بعد.</p> : activities.length ? activities.map((a:any)=><p key={a.id} className="text-sm border-t border-cyan-950 py-2">{a.title} — {a.review_status || (a.published?'منشور':'قيد المراجعة')}</p>) : <p className="text-sm text-slate-400">لا توجد أنشطة مسندة أو مسجلة حالياً.</p>}</div>
         </section>
-        {profile.membership_status==='approved' && <><CourseEnrollmentPanel/><MemberMeetingsPanel/></>}
+        {profile.membership_status==='approved' && <><CourseEnrollmentPanel/><MemberMeetingsPanel/><MemberTasksPanel/></>}
         {profile.role==='admin' && profile.membership_status==='approved' && <>
           <section className="rounded-3xl border border-emerald-800/70 bg-[#06182c] p-5">
             <h3 className="font-bold mb-2">إضافة نشاط جديد</h3>
