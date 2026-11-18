@@ -305,6 +305,8 @@ export const AccountPage: React.FC<Props> = ({ onBackToHome, onOpenCardModal, on
         </section>
         {profile.membership_status==='approved' && <><CourseEnrollmentPanel/><MemberMeetingsPanel/><MemberTasksPanel/><MemberCalendarPanel/></>}
         {profile.role==='admin' && profile.membership_status==='approved' && <>
+          <AdminModulesPanel />
+          <ProjectTasksPanel />
           <section className="rounded-3xl border border-emerald-800/70 bg-[#06182c] p-5">
             <h3 className="font-bold mb-2">إضافة نشاط جديد</h3>
             <p className="text-xs text-slate-400 mb-4">النشاط الذي يضيفه المدير يُحفظ معتمدًا في قاعدة البيانات. ربطه بتصنيفات الصفحة العامة خطوة منفصلة.</p>
