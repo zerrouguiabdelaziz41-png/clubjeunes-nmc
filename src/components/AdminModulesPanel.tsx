@@ -137,12 +137,18 @@ export const AdminModulesPanel: React.FC = () => {
     const role = committeeRole[committeeId] || 'member';
     if (!userId) { setError('اختر عضواً معتمداً أولاً.'); return; }
     setBusy(true); setError(''); setNotice('');
-    const {error:e} = await client.from('committee_members').insert({committee_id:committeeId,user_id:userId,committee_role:role});
+    const {data:inserted,error:e} = await client.from('committee_members').insert({committee_id:committeeId,user_id:userId,committee_role:'member'}).select('id').single();
     if (e) setError(e.message); else {
       if (role === 'chair') {
-        const chair=people.find((p:any)=>p.id===userId);
-        const {error:chairError}=await client.from('committees').update({chair_user_id:userId,chair_name:chair?.full_name||null,updated_at:new Date().toISOString()}).eq('id',committeeId);
-        if (chairError) setError('تمت إضافة العضو لكن تعذر تحديث بيانات رئيس اللجنة: '+chairError.message);
+        const {error:demoteError}=await client.from('committee_members').update({committee_role:'member'}).eq('committee_id',committeeId).eq('committee_role','chair').eq('is_active',true);
+        if (demoteError) setError(demoteError.message);
+        else {
+          const {error:promoteError}=await client.from('committee_members').update({committee_role:'chair'}).eq('id',inserted.id);
+          const chair=people.find((p:any)=>p.id===userId);
+          const {error:chairError}=await client.from('committees').update({chair_user_id:userId,chair_name:chair?.full_name||null,updated_at:new Date().toISOString()}).eq('id',committeeId);
+          if (promoteError) setError(promoteError.message);
+          if (chairError) setError('تعذر تحديث بيانات رئيس اللجنة: '+chairError.message);
+        }
       }
       setNotice(role === 'chair' ? 'تم تعيين رئيس اللجنة.' : 'تمت إضافة العضو إلى اللجنة.');
       setCommitteeUser(old=>({...old,[committeeId]:''}));
