@@ -86,36 +86,39 @@ export const SupabaseClubService = {
     error?: string;
   }> {
     const client = getSupabaseClient();
-    const cleanNumber = (membershipNumber || '').trim();
-    if (!client || !cleanNumber) return { found: false, source: 'local', error: 'تعذر الاتصال بقاعدة البيانات.' };
+    const cleanNumber = (membershipNumber || '').trim().toUpperCase();
+    if (!client || !cleanNumber) {
+      return { found: false, source: 'supabase', error: 'تعذر الاتصال بقاعدة البيانات.' };
+    }
 
-    // The current profiles schema uses the authenticated user UUID as its stable identifier.
-    // Do not query a non-existent demo `members` table or accept hard-coded sample members.
-    const { data, error } = await client
-      .from('profiles')
-      .select('id,membership_number,full_name,phone,role,membership_status,created_at')
-      .or(`membership_number.eq.${cleanNumber},id.eq.${cleanNumber}`)
-      .maybeSingle();
+    // Use the narrowly scoped public verification RPC; never expose profile rows.
+    const { data, error } = await client.rpc('verify_approved_member', {
+      p_membership_number: cleanNumber,
+    });
 
     if (error) return { found: false, source: 'supabase', error: error.message };
-    if (!data || data.membership_status !== 'approved') return { found: false, source: 'supabase' };
+    const verified = Array.isArray(data) ? data[0] : data;
+    if (!verified?.membership_number) return { found: false, source: 'supabase' };
 
-    const role = (['member', 'organizer', 'admin'].includes(data.role) ? data.role : 'member') as UserRole;
+    const role = (['member', 'organizer', 'admin'].includes(verified.role)
+      ? verified.role
+      : 'member') as UserRole;
+
     return {
       found: true,
       source: 'supabase',
       member: {
-        id: data.id,
-        membershipNumber: data.membership_number || data.id,
-        name: data.full_name || 'عضو معتمد',
+        id: verified.membership_number,
+        membershipNumber: verified.membership_number,
+        name: verified.full_name || 'عضو معتمد',
         role,
         roleLabel: role === 'admin' ? 'مدير الموقع' : role === 'organizer' ? 'مشرف نشاط' : 'عضو',
         age: 0,
-        phone: data.phone || '',
+        phone: '',
         email: '',
         city: '',
         avatar: '',
-        issueDate: data.created_at?.slice(0, 10).replace(/-/g, '/') || '',
+        issueDate: verified.created_at?.slice(0, 10).replace(/-/g, '/') || '',
         expiryDate: '',
         status: 'active',
       },
