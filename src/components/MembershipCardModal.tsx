@@ -95,6 +95,7 @@ export const MembershipCardModal: React.FC<MembershipCardModalProps> = ({
       };
       const loadImage = (src: string) => new Promise<HTMLImageElement>((resolve, reject) => {
         const image = new Image();
+        image.crossOrigin = 'anonymous';
         image.onload = () => resolve(image);
         image.onerror = reject;
         image.src = src;
@@ -235,7 +236,7 @@ export const MembershipCardModal: React.FC<MembershipCardModalProps> = ({
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
-      URL.revokeObjectURL(url);
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
       setDownloadSuccess(true);
       setTimeout(() => setDownloadSuccess(false), 3000);
     } catch (error) {
