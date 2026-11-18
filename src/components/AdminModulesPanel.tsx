@@ -43,6 +43,7 @@ export const AdminModulesPanel: React.FC = () => {
   const [committeeRole,setCommitteeRole] = useState<Record<string,string>>({});
   const [pageDrafts,setPageDrafts] = useState<Record<string,string>>({});
   const [currentUserId,setCurrentUserId] = useState('');
+  const [pageVersions,setPageVersions] = useState<Record<string,any[]>>({});
   const [form,setForm] = useState<Record<string,string>>({});
   const [busy,setBusy] = useState(false);
   const [error,setError] = useState('');
@@ -131,6 +132,23 @@ export const AdminModulesPanel: React.FC = () => {
     else setNotice('تم حفظ المحتوى وإنشاء نسخة رقم '+versionNumber+'.');
     await load(); setBusy(false);
   };
+  const loadPageVersions = async (pageId:string) => {
+    if (!client) return;
+    const {data,error:e} = await client.from('site_page_versions').select('id,version_number,title,status,created_at,content').eq('page_id',pageId).order('version_number',{ascending:false}).limit(20);
+    if (e) setError(e.message); else setPageVersions(old=>({...old,[pageId]:data||[]}));
+  };
+  const restorePageVersion = async (page:any,version:any) => {
+    if (!client || !window.confirm('سيتم استرجاع محتوى الإصدار المحدد. هل تريد المتابعة؟')) return;
+    setBusy(true); setError(''); setNotice('');
+    const {data:latest,error:latestError} = await client.from('site_page_versions').select('version_number').eq('page_id',page.id).order('version_number',{ascending:false}).limit(1);
+    if (latestError) {setError(latestError.message);setBusy(false);return;}
+    const nextVersion = (latest?.[0]?.version_number||0)+1;
+    const {error:snapshotError} = await client.from('site_page_versions').insert({page_id:page.id,version_number:nextVersion,title:page.title,content:page.content,status:page.status});
+    if (snapshotError) {setError('تعذر حفظ نسخة الحالة الحالية قبل الاسترجاع: '+snapshotError.message);setBusy(false);return;}
+    const {error:restoreError} = await client.from('site_pages').update({title:version.title,content:version.content,status:version.status,published_at:version.status==='published'?new Date().toISOString():null,updated_by:currentUserId,updated_at:new Date().toISOString()}).eq('id',page.id);
+    if (restoreError) setError(restoreError.message); else {setNotice('تم استرجاع الإصدار '+version.version_number+' وحفظ نسخة من الحالة السابقة.');setPageDrafts(old=>({...old,[page.id]:JSON.stringify(version.content,null,2)}));await load();}
+    await loadPageVersions(page.id); setBusy(false);
+  };
   const togglePagePublish = async (page:any) => {
     if (!client) return;
     const next = page.status === 'published' ? 'draft' : 'published';
@@ -162,7 +180,7 @@ export const AdminModulesPanel: React.FC = () => {
       <button disabled={busy} className="md:col-span-2 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 px-4 py-3 font-bold disabled:opacity-50">{busy?'جارٍ الحفظ…':'حفظ السجل'}</button>
     </form>
     <div className="space-y-2"><div className="flex justify-between items-center"><h3 className="font-bold">السجلات الحالية ({rows.length})</h3><button onClick={()=>void load()} className="text-xs text-cyan-300">تحديث</button></div>
-      {rows.map(row=><article key={row.id} className="rounded-xl border border-cyan-950 p-3 space-y-2"><div className="flex flex-wrap justify-between gap-2"><div><p className="font-semibold text-sm">{displayRow(row)}</p><p className="text-xs text-slate-400 mt-1">{row.status||row.visibility||row.created_at||''}</p>{tab==='messages'&&<p className="text-xs text-slate-300 mt-2 whitespace-pre-wrap">{row.body}</p>}</div>{tab==='messages'&&!row.read_at&&row.recipient_id===currentUserId&&<button onClick={()=>void markRead(row.id)} className="text-xs text-cyan-300">تحديد كمقروء</button>}</div>{tab==='pages'&&<><textarea rows={5} value={pageDrafts[row.id]??JSON.stringify(row.content??{},null,2)} onChange={e=>setPageDrafts(old=>({...old,[row.id]:e.target.value}))} className={styles}/><div className="flex flex-wrap gap-2"><button disabled={busy} onClick={()=>void savePageContent(row)} className="rounded-lg bg-cyan-900 px-3 py-2 text-xs">حفظ المحتوى وإنشاء نسخة</button><button disabled={busy} onClick={()=>void togglePagePublish(row)} className="rounded-lg bg-amber-700 px-3 py-2 text-xs">{row.status==='published'?'إلغاء النشر':'نشر الصفحة'}</button></div></>}</article>)}
+      {rows.map(row=><article key={row.id} className="rounded-xl border border-cyan-950 p-3 space-y-2"><div className="flex flex-wrap justify-between gap-2"><div><p className="font-semibold text-sm">{displayRow(row)}</p><p className="text-xs text-slate-400 mt-1">{row.status||row.visibility||row.created_at||''}</p>{tab==='messages'&&<p className="text-xs text-slate-300 mt-2 whitespace-pre-wrap">{row.body}</p>}</div>{tab==='messages'&&!row.read_at&&row.recipient_id===currentUserId&&<button onClick={()=>void markRead(row.id)} className="text-xs text-cyan-300">تحديد كمقروء</button>}</div>{tab==='pages'&&<><textarea rows={5} value={pageDrafts[row.id]??JSON.stringify(row.content??{},null,2)} onChange={e=>setPageDrafts(old=>({...old,[row.id]:e.target.value}))} className={styles}/><div className="flex flex-wrap gap-2"><button disabled={busy} onClick={()=>void savePageContent(row)} className="rounded-lg bg-cyan-900 px-3 py-2 text-xs">حفظ المحتوى وإنشاء نسخة</button><button disabled={busy} onClick={()=>void togglePagePublish(row)} className="rounded-lg bg-amber-700 px-3 py-2 text-xs">{row.status==='published'?'إلغاء النشر':'نشر الصفحة'}</button><button disabled={busy} onClick={()=>void loadPageVersions(row.id)} className="rounded-lg bg-slate-700 px-3 py-2 text-xs">سجل الإصدارات</button></div>{(pageVersions[row.id]||[]).map(v=><div key={v.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-cyan-950 pt-2 text-xs"><span>الإصدار {v.version_number} · {v.status} · {new Date(v.created_at).toLocaleString('ar-DZ')}</span><button disabled={busy} onClick={()=>void restorePageVersion(row,v)} className="text-amber-300">استرجاع</button></div>)}</>}</article>)}
       {!rows.length&&<p className="text-sm text-slate-500">لا توجد سجلات في هذا القسم بعد.</p>}
     </div></>}
   </section>;
