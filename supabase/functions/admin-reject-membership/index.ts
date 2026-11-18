@@ -173,7 +173,14 @@ Deno.serve(async (req: Request) => {
     p_performed_by: adminId,
     p_reason: reason,
   });
-  if (auditError || !auditId) return json({ error: "audit_start_failed" }, 500);
+  if (auditError || !auditId) {
+    // The database serializes approve/reject operations. A stale pre-check or
+    // concurrent review is a conflict, not an internal server failure.
+    if (auditError?.code === "40001" || auditError?.code === "P0002") {
+      return json({ error: "request_already_processed_or_in_progress" }, 409);
+    }
+    return json({ error: "audit_start_failed" }, 500);
+  }
 
   try {
     await removeUserFiles(admin, targetUserId);
