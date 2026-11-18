@@ -1,0 +1,45 @@
+import React, { useCallback, useEffect, useState } from 'react';
+import { getSupabaseClient } from '../lib/supabase.ts';
+
+export const ProjectTasksPanel: React.FC = () => {
+  const client = getSupabaseClient();
+  const [projects,setProjects] = useState<any[]>([]);
+  const [tasks,setTasks] = useState<any[]>([]);
+  const [projectId,setProjectId] = useState('');
+  const [title,setTitle] = useState('');
+  const [priority,setPriority] = useState('medium');
+  const [busy,setBusy] = useState(false);
+  const [error,setError] = useState('');
+  const load = useCallback(async () => {
+    if (!client) return;
+    const [p,t] = await Promise.all([
+      client.from('projects').select('id,title').order('created_at',{ascending:false}),
+      client.from('project_tasks').select('id,project_id,title,status,priority,due_at').order('created_at',{ascending:false})
+    ]);
+    if (p.error) setError(p.error.message); else setProjects(p.data || []);
+    if (t.error) setError(t.error.message); else setTasks(t.data || []);
+  },[client]);
+  useEffect(()=>{void load();},[load]);
+  const add = async (e:React.FormEvent) => {
+    e.preventDefault(); if (!client || !projectId || !title.trim()) return;
+    setBusy(true);setError('');
+    const {error:e2} = await client.from('project_tasks').insert({project_id:projectId,title:title.trim(),priority});
+    if (e2) setError(e2.message); else {setTitle('');await load();}
+    setBusy(false);
+  };
+  const updateStatus = async (id:string,status:string) => {
+    if (!client) return;
+    const {error:e} = await client.from('project_tasks').update({status,updated_at:new Date().toISOString()}).eq('id',id);
+    if (e) setError(e.message); else await load();
+  };
+  return <section className="rounded-3xl border border-cyan-800 bg-[#06182c] p-5 space-y-4">
+    <div><h3 className="font-bold text-lg">متابعة المهام</h3><p className="text-xs text-slate-400">إنشاء المهام وتحديث تقدمها ضمن المشاريع.</p></div>
+    {error&&<p role="alert" className="text-sm text-rose-300">{error}</p>}
+    <form onSubmit={add} className="grid md:grid-cols-3 gap-2">
+      <select required value={projectId} onChange={e=>setProjectId(e.target.value)} className="rounded-xl bg-[#030e1c] border border-cyan-900 p-3"><option value="">اختر المشروع</option>{projects.map(p=><option key={p.id} value={p.id}>{p.title}</option>)}</select>
+      <input required maxLength={180} value={title} onChange={e=>setTitle(e.target.value)} placeholder="عنوان المهمة" className="rounded-xl bg-[#030e1c] border border-cyan-900 p-3"/>
+      <div className="flex gap-2"><select value={priority} onChange={e=>setPriority(e.target.value)} className="min-w-0 flex-1 rounded-xl bg-[#030e1c] border border-cyan-900 p-3"><option value="low">منخفضة</option><option value="medium">متوسطة</option><option value="high">عالية</option><option value="urgent">عاجلة</option></select><button disabled={busy||!projectId} className="rounded-xl bg-cyan-800 px-4 font-bold">إضافة</button></div>
+    </form>
+    <div className="space-y-2">{tasks.map(t=><article key={t.id} className="rounded-xl border border-cyan-950 p-3 flex flex-wrap items-center justify-between gap-3"><div><p className="font-semibold text-sm">{t.title}</p><p className="text-xs text-slate-400">{projects.find(p=>p.id===t.project_id)?.title || 'مشروع'} · الأولوية: {t.priority}</p></div><select aria-label="حالة المهمة" value={t.status} onChange={e=>void updateStatus(t.id,e.target.value)} className="rounded-lg bg-[#030e1c] border border-cyan-900 px-3 py-2 text-xs"><option value="todo">لم تبدأ</option><option value="in_progress">قيد التنفيذ</option><option value="blocked">متوقفة</option><option value="done">مكتملة</option><option value="cancelled">ملغاة</option></select></article>)}{!tasks.length&&<p className="text-sm text-slate-500">لا توجد مهام حالياً.</p>}</div>
+  </section>;
+};
