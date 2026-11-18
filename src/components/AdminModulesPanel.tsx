@@ -22,7 +22,7 @@ const fields: Record<ModuleKey,string[]> = {
   committees:[],
   courses:['title','description','starts_at','ends_at','location','status'],
   meetings:['title','agenda','starts_at','ends_at','location','meeting_type','committee_id'],
-  partnerships:['partner_name','partner_type','description','contact_name','contact_email','contact_phone'],
+  partnerships:['partner_name','partner_type','description','contact_name','contact_email','contact_phone','starts_on','ends_on','status'],
   calendar:['title','description','starts_at','ends_at','location','event_type','visibility'],
   pages:['slug','title'],
   messages:['recipient_id','subject','body']
@@ -227,7 +227,7 @@ export const AdminModulesPanel: React.FC = () => {
     : <><form onSubmit={submit} className="grid md:grid-cols-2 gap-3">
       {fields[tab].map(key=><label key={key} className={`text-sm ${key==='description'||key==='body'||key==='agenda'?'md:col-span-2':''}`}>{labels[key]||key}
         {key==='recipient_id' ? <select required value={form[key]||''} onChange={e=>setField(key,e.target.value)} className={styles}><option value="">اختر عضواً من الإدارة</option>{people.map(p=><option key={p.id} value={p.id}>{p.full_name||p.id}</option>)}</select>
-        : key==='status' ? <select value={form[key]|| (tab==='projects'?'planning':tab==='courses'?'draft':'scheduled')} onChange={e=>setField(key,e.target.value)} className={styles}>{(tab==='projects'?['planning','active','on_hold','completed','cancelled']:tab==='courses'?['draft','open','in_progress','completed','cancelled']:['scheduled','held','cancelled']).map(v=><option key={v}>{v}</option>)}</select>
+        : key==='status' ? <select value={form[key]|| (tab==='projects'?'planning':tab==='courses'?'draft':tab==='partnerships'?'prospective':'scheduled')} onChange={e=>setField(key,e.target.value)} className={styles}>{(tab==='projects'?['planning','active','on_hold','completed','cancelled']:tab==='courses'?['draft','open','in_progress','completed','cancelled']:tab==='partnerships'?['prospective','active','expired','terminated']:['scheduled','held','cancelled']).map(v=><option key={v}>{v}</option>)}</select>
         : key==='meeting_type' ? <select value={form[key]||'administrative'} onChange={e=>setField(key,e.target.value)} className={styles}>{['administrative','committee','project','general'].map(v=><option key={v} value={v}>{v}</option>)}</select>
         : key==='committee_id' ? <select value={form[key]||''} onChange={e=>setField(key,e.target.value)} className={styles}><option value="">دون لجنة محددة</option>{meetingCommittees.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select>
         : key==='visibility' ? <select value={form[key]||'members'} onChange={e=>setField(key,e.target.value)} className={styles}><option value="public">عام</option><option value="members">الأعضاء</option><option value="admin">الإدارة</option></select>
