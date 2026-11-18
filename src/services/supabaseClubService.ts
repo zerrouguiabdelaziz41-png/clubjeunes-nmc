@@ -234,23 +234,31 @@ export const SupabaseClubService = {
   async uploadUserAvatar(userId: string, file: File): Promise<{
     success: boolean;
     publicUrl?: string;
+    path?: string;
     error?: string;
   }> {
     const client = getSupabaseClient();
     if (!client) {
       return { success: false, error: 'عميل Supabase غير مهيأ' };
     }
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      return { success: false, error: 'نوع الصورة غير مدعوم. استخدم JPG أو PNG أو WebP.' };
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      return { success: false, error: 'يجب ألا يتجاوز حجم الصورة 2 ميغابايت.' };
+    }
 
     try {
-      const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-      const cleanExt = ['jpg', 'jpeg', 'png', 'webp'].includes(ext) ? ext : 'jpg';
-      const filePath = `${userId}/avatar-${Date.now()}.${cleanExt}`;
+      const ext = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg';
+      const filePath = `${userId}/avatar-${Date.now()}.${ext}`;
 
       const { data, error } = await client.storage
         .from('avatars')
         .upload(filePath, file, {
           cacheControl: '3600',
-          upsert: true,
+          upsert: false,
+          contentType: file.type,
         });
 
       if (error) {
@@ -258,16 +266,16 @@ export const SupabaseClubService = {
         return { success: false, error: error.message };
       }
 
-      const { data: urlData } = client.storage.from('avatars').getPublicUrl(filePath);
+      const { data: urlData } = client.storage.from('avatars').getPublicUrl(data.path);
       return {
         success: true,
         publicUrl: urlData?.publicUrl,
+        path: data.path,
       };
     } catch (err: any) {
       return { success: false, error: err?.message || 'تعذر رفع الصورة إلى التخزين' };
     }
   },
-
   /**
    * Save a newly registered member into Supabase (if table exists and permitted)
    */
