@@ -21,7 +21,7 @@ const fields: Record<ModuleKey,string[]> = {
   projects:['title','description','status','start_date','due_date'],
   committees:[],
   courses:['title','description','starts_at','ends_at','location','status'],
-  meetings:['title','agenda','starts_at','ends_at','location'],
+  meetings:['title','agenda','starts_at','ends_at','location','meeting_type','committee_id'],
   partnerships:['partner_name','partner_type','description','contact_name','contact_email','contact_phone'],
   calendar:['title','description','starts_at','ends_at','location','event_type','visibility'],
   pages:['slug','title'],
@@ -43,6 +43,12 @@ export const AdminModulesPanel: React.FC = () => {
   const [committeeRole,setCommitteeRole] = useState<Record<string,string>>({});
   const [pageDrafts,setPageDrafts] = useState<Record<string,string>>({});
   const [currentUserId,setCurrentUserId] = useState('');
+  const [meetingPeople,setMeetingPeople] = useState<any[]>([]);
+  const [meetingCommittees,setMeetingCommittees] = useState<any[]>([]);
+  const [meetingAttendees,setMeetingAttendees] = useState<any[]>([]);
+  const [meetingMinutes,setMeetingMinutes] = useState<any[]>([]);
+  const [meetingAttendeeSelection,setMeetingAttendeeSelection] = useState<Record<string,string>>({});
+  const [meetingMinuteDrafts,setMeetingMinuteDrafts] = useState<Record<string,string>>({});
   const [pageVersions,setPageVersions] = useState<Record<string,any[]>>({});
   const [form,setForm] = useState<Record<string,string>>({});
   const [busy,setBusy] = useState(false);
@@ -73,6 +79,21 @@ export const AdminModulesPanel: React.FC = () => {
     if (tab === 'messages') {
       const {data:admins,error:adminError} = await client.from('profiles').select('id,full_name').eq('role','admin').eq('membership_status','approved');
       if (adminError) setError(adminError.message); else setPeople(admins || []);
+    }
+    if (tab === 'meetings') {
+      const [memberResult,committeeResult,attendeeResult,minutesResult] = await Promise.all([
+        client.from('profiles').select('id,full_name').eq('membership_status','approved').order('full_name'),
+        client.from('committees').select('id,name').eq('is_active',true).order('name'),
+        client.from('meeting_attendees').select('id,meeting_id,user_id,attendance_status').order('id'),
+        client.from('meeting_minutes').select('id,meeting_id,content,decisions,updated_at')
+      ]);
+      if (memberResult.error) setError(memberResult.error.message); else setMeetingPeople(memberResult.data||[]);
+      if (committeeResult.error) setError(committeeResult.error.message); else setMeetingCommittees(committeeResult.data||[]);
+      if (attendeeResult.error) setError(attendeeResult.error.message); else setMeetingAttendees(attendeeResult.data||[]);
+      if (minutesResult.error) setError(minutesResult.error.message); else {
+        setMeetingMinutes(minutesResult.data||[]);
+        setMeetingMinuteDrafts(old=>({...Object.fromEntries((minutesResult.data||[]).map((m:any)=>[m.meeting_id,m.content||''])),...old}));
+      }
     }
     setBusy(false);
   },[client,tab]);
@@ -167,6 +188,31 @@ export const AdminModulesPanel: React.FC = () => {
     if (e) setError(e.message); else {setNotice(next==='published'?'تم نشر الصفحة.':'تم تحويل الصفحة إلى مسودة.'); await load();}
     setBusy(false);
   };
+  const addMeetingAttendee = async (meetingId:string) => {
+    if (!client) return;
+    const userId = meetingAttendeeSelection[meetingId];
+    if (!userId) {setError('اختر عضواً لإضافته إلى الاجتماع.');return;}
+    setBusy(true);setError('');
+    const {error:e} = await client.from('meeting_attendees').insert({meeting_id:meetingId,user_id:userId,attendance_status:'invited'});
+    if (e) setError(e.message); else {setMeetingAttendeeSelection(old=>({...old,[meetingId]:''}));setNotice('تمت إضافة المدعو إلى الاجتماع.');await load();}
+    setBusy(false);
+  };
+  const updateAttendance = async (id:string,status:string) => {
+    if (!client) return;
+    setBusy(true);setError('');
+    const {error:e} = await client.from('meeting_attendees').update({attendance_status:status}).eq('id',id);
+    if (e) setError(e.message); else await load();
+    setBusy(false);
+  };
+  const saveMeetingMinutes = async (meetingId:string) => {
+    if (!client) return;
+    const content = (meetingMinuteDrafts[meetingId]||'').trim();
+    if (!content) {setError('أدخل نص محضر الاجتماع قبل الحفظ.');return;}
+    setBusy(true);setError('');
+    const {error:e} = await client.from('meeting_minutes').upsert({meeting_id:meetingId,content,recorded_by:currentUserId,updated_at:new Date().toISOString()},{onConflict:'meeting_id'});
+    if (e) setError(e.message); else {setNotice('تم حفظ محضر الاجتماع.');await load();}
+    setBusy(false);
+  };
   const markRead = async (id:string) => {
     if (!client) return;
     const {error:e} = await client.from('admin_messages').update({read_at:new Date().toISOString()}).eq('id',id);
@@ -182,6 +228,8 @@ export const AdminModulesPanel: React.FC = () => {
       {fields[tab].map(key=><label key={key} className={`text-sm ${key==='description'||key==='body'||key==='agenda'?'md:col-span-2':''}`}>{labels[key]||key}
         {key==='recipient_id' ? <select required value={form[key]||''} onChange={e=>setField(key,e.target.value)} className={styles}><option value="">اختر عضواً من الإدارة</option>{people.map(p=><option key={p.id} value={p.id}>{p.full_name||p.id}</option>)}</select>
         : key==='status' ? <select value={form[key]|| (tab==='projects'?'planning':tab==='courses'?'draft':'scheduled')} onChange={e=>setField(key,e.target.value)} className={styles}>{(tab==='projects'?['planning','active','on_hold','completed','cancelled']:tab==='courses'?['draft','open','in_progress','completed','cancelled']:['scheduled','held','cancelled']).map(v=><option key={v}>{v}</option>)}</select>
+        : key==='meeting_type' ? <select value={form[key]||'administrative'} onChange={e=>setField(key,e.target.value)} className={styles}>{['administrative','committee','project','general'].map(v=><option key={v} value={v}>{v}</option>)}</select>
+        : key==='committee_id' ? <select value={form[key]||''} onChange={e=>setField(key,e.target.value)} className={styles}><option value="">دون لجنة محددة</option>{meetingCommittees.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select>
         : key==='visibility' ? <select value={form[key]||'members'} onChange={e=>setField(key,e.target.value)} className={styles}><option value="public">عام</option><option value="members">الأعضاء</option><option value="admin">الإدارة</option></select>
         : key==='event_type' ? <select value={form[key]||'general'} onChange={e=>setField(key,e.target.value)} className={styles}>{['activity','meeting','training','deadline','general'].map(v=><option key={v} value={v}>{v}</option>)}</select>
         : key==='description'||key==='body'||key==='agenda' ? <textarea required={key==='body'||key==='agenda'} rows={3} maxLength={20000} value={form[key]||''} onChange={e=>setField(key,e.target.value)} className={styles}/>
@@ -190,7 +238,7 @@ export const AdminModulesPanel: React.FC = () => {
       <button disabled={busy} className="md:col-span-2 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 px-4 py-3 font-bold disabled:opacity-50">{busy?'جارٍ الحفظ…':'حفظ السجل'}</button>
     </form>
     <div className="space-y-2"><div className="flex justify-between items-center"><h3 className="font-bold">السجلات الحالية ({rows.length})</h3><button onClick={()=>void load()} className="text-xs text-cyan-300">تحديث</button></div>
-      {rows.map(row=><article key={row.id} className="rounded-xl border border-cyan-950 p-3 space-y-2"><div className="flex flex-wrap justify-between gap-2"><div><p className="font-semibold text-sm">{displayRow(row)}</p><p className="text-xs text-slate-400 mt-1">{row.status||row.visibility||row.created_at||''}</p>{tab==='messages'&&<p className="text-xs text-slate-300 mt-2 whitespace-pre-wrap">{row.body}</p>}</div>{tab==='messages'&&!row.read_at&&row.recipient_id===currentUserId&&<button onClick={()=>void markRead(row.id)} className="text-xs text-cyan-300">تحديد كمقروء</button>}</div>{tab==='pages'&&<><textarea rows={5} value={pageDrafts[row.id]??JSON.stringify(row.content??{},null,2)} onChange={e=>setPageDrafts(old=>({...old,[row.id]:e.target.value}))} className={styles}/><div className="flex flex-wrap gap-2"><button disabled={busy} onClick={()=>void savePageContent(row)} className="rounded-lg bg-cyan-900 px-3 py-2 text-xs">حفظ المحتوى وإنشاء نسخة</button><button disabled={busy} onClick={()=>void togglePagePublish(row)} className="rounded-lg bg-amber-700 px-3 py-2 text-xs">{row.status==='published'?'إلغاء النشر':'نشر الصفحة'}</button><button disabled={busy} onClick={()=>void loadPageVersions(row.id)} className="rounded-lg bg-slate-700 px-3 py-2 text-xs">سجل الإصدارات</button></div>{(pageVersions[row.id]||[]).map(v=><div key={v.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-cyan-950 pt-2 text-xs"><span>الإصدار {v.version_number} · {v.status} · {new Date(v.created_at).toLocaleString('ar-DZ')}</span><button disabled={busy} onClick={()=>void restorePageVersion(row,v)} className="text-amber-300">استرجاع</button></div>)}</>}</article>)}
+      {rows.map(row=><article key={row.id} className="rounded-xl border border-cyan-950 p-3 space-y-2"><div className="flex flex-wrap justify-between gap-2"><div><p className="font-semibold text-sm">{displayRow(row)}</p><p className="text-xs text-slate-400 mt-1">{row.status||row.visibility||row.created_at||''}</p>{tab==='messages'&&<p className="text-xs text-slate-300 mt-2 whitespace-pre-wrap">{row.body}</p>}</div>{tab==='messages'&&!row.read_at&&row.recipient_id===currentUserId&&<button onClick={()=>void markRead(row.id)} className="text-xs text-cyan-300">تحديد كمقروء</button>}</div>{tab==='pages'&&<><textarea rows={5} value={pageDrafts[row.id]??JSON.stringify(row.content??{},null,2)} onChange={e=>setPageDrafts(old=>({...old,[row.id]:e.target.value}))} className={styles}/><div className="flex flex-wrap gap-2"><button disabled={busy} onClick={()=>void savePageContent(row)} className="rounded-lg bg-cyan-900 px-3 py-2 text-xs">حفظ المحتوى وإنشاء نسخة</button><button disabled={busy} onClick={()=>void togglePagePublish(row)} className="rounded-lg bg-amber-700 px-3 py-2 text-xs">{row.status==='published'?'إلغاء النشر':'نشر الصفحة'}</button><button disabled={busy} onClick={()=>void loadPageVersions(row.id)} className="rounded-lg bg-slate-700 px-3 py-2 text-xs">سجل الإصدارات</button></div>{(pageVersions[row.id]||[]).map(v=><div key={v.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-cyan-950 pt-2 text-xs"><span>الإصدار {v.version_number} · {v.status} · {new Date(v.created_at).toLocaleString('ar-DZ')}</span><button disabled={busy} onClick={()=>void restorePageVersion(row,v)} className="text-amber-300">استرجاع</button></div>)}</>}{tab==='meetings'&&<div className="space-y-3 border-t border-cyan-950 pt-3"><div className="grid sm:grid-cols-[1fr_auto] gap-2"><select value={meetingAttendeeSelection[row.id]||''} onChange={e=>setMeetingAttendeeSelection(old=>({...old,[row.id]:e.target.value}))} className={styles}><option value="">إضافة عضو معتمد للاجتماع</option>{meetingPeople.filter(p=>!meetingAttendees.some(a=>a.meeting_id===row.id&&a.user_id===p.id)).map(p=><option key={p.id} value={p.id}>{p.full_name||p.id}</option>)}</select><button disabled={busy||!meetingAttendeeSelection[row.id]} onClick={()=>void addMeetingAttendee(row.id)} className="rounded-lg bg-cyan-900 px-3 py-2 text-xs">إضافة مدعو</button></div><div className="space-y-2">{meetingAttendees.filter(a=>a.meeting_id===row.id).map(a=><div key={a.id} className="flex flex-wrap justify-between items-center gap-2 text-xs"><span>{meetingPeople.find(p=>p.id===a.user_id)?.full_name||'عضو'}</span><select value={a.attendance_status} onChange={e=>void updateAttendance(a.id,e.target.value)} className="rounded-lg bg-[#030e1c] border border-cyan-900 p-2"><option value="invited">مدعو</option><option value="accepted">أكد الحضور</option><option value="declined">اعتذر</option><option value="attended">حضر</option><option value="absent">غائب</option></select></div>)}</div><label className="block text-xs">محضر الاجتماع<textarea rows={4} value={meetingMinuteDrafts[row.id]??''} onChange={e=>setMeetingMinuteDrafts(old=>({...old,[row.id]:e.target.value}))} placeholder="سجل مجريات الاجتماع والقرارات المتخذة" className={styles}/></label><button disabled={busy} onClick={()=>void saveMeetingMinutes(row.id)} className="rounded-lg bg-amber-700 px-3 py-2 text-xs">حفظ المحضر</button></div>}</article>)}
       {!rows.length&&<p className="text-sm text-slate-500">لا توجد سجلات في هذا القسم بعد.</p>}
     </div></>}
   </section>;
