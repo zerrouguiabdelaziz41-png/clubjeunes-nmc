@@ -124,6 +124,10 @@ export const AccountPage: React.FC<Props> = ({ onBackToHome, onOpenCardModal, on
   };
   const changeRole = async (userId:string, role:Role) => {
     if (!client) return;
+    const target = people.find((person:any)=>person.id===userId);
+    if (!target || target.membership_status !== 'approved') {
+      setError('لا يمكن تغيير الدور إلا لحساب ذي عضوية معتمدة.'); return;
+    }
     setBusy(true); setError(''); setNotice('');
     const { error: rpcError } = await client.rpc('admin_set_profile_access', {
       p_user_id: userId, p_role: role, p_membership_status: 'approved'
@@ -262,7 +266,7 @@ export const AccountPage: React.FC<Props> = ({ onBackToHome, onOpenCardModal, on
                   <div><p className="text-sm font-semibold">{person.full_name || 'مستخدم دون اسم'}</p><p className="text-xs text-slate-400">{statusNames[person.membership_status as keyof typeof statusNames]} · {roleNames[person.role as Role] || person.role}</p></div>
                   <div className="flex gap-2">
                     {person.membership_status === 'approved' && person.role === 'member' && <button disabled={busy} onClick={()=>void changeRole(person.id,'organizer')} className="rounded-lg bg-cyan-900 px-3 py-2 text-xs">تعيينه مشرفاً</button>}
-                    {person.role === 'organizer' && <button disabled={busy} onClick={()=>void changeRole(person.id,'member')} className="rounded-lg bg-slate-700 px-3 py-2 text-xs">إعادته عضواً</button>}
+                    {person.role === 'organizer' && person.membership_status === 'approved' && <button disabled={busy} onClick={()=>void changeRole(person.id,'member')} className="rounded-lg bg-slate-700 px-3 py-2 text-xs">إعادته عضواً</button>}
                     {person.membership_status === 'approved' && <button disabled={busy} onClick={()=>void changeMembershipStatus(person.id,'revoke')} className="rounded-lg bg-rose-950 border border-rose-700 px-3 py-2 text-xs text-rose-200">سحب العضوية</button>}
                     {person.membership_status === 'revoked' && <button disabled={busy} onClick={()=>void changeMembershipStatus(person.id,'restore')} className="rounded-lg bg-emerald-900 border border-emerald-700 px-3 py-2 text-xs text-emerald-100">استعادة العضوية</button>}
                   </div>
