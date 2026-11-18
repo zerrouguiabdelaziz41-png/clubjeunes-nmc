@@ -91,10 +91,34 @@ export const AccountPage: React.FC<Props> = ({ onBackToHome, onOpenCardModal, on
   };
   const signOut = async () => { if (!client) return; const { error: signOutError } = await client.auth.signOut(); if (signOutError) { setError(signOutError.message); return; } setProfile(null); setSessionEmail(''); setRequests([]); setActivities([]); setRegistrations([]); setNotice('تم تسجيل الخروج بأمان.'); };
   const reviewMembership = async (id:string, status:'approved'|'rejected') => {
-    if (!client) return; setBusy(true); setError('');
-    const { error: rpcError } = await client.rpc('admin_review_membership', { p_request_id:id, p_status:status, p_admin_notes:null });
-    if (rpcError) setError(rpcError.message); else { setNotice('تم تحديث قرار طلب العضوية.'); await loadAccount(); }
-    setBusy(false);
+    if (!client) return;
+    setBusy(true); setError(''); setNotice('');
+    try {
+      if (status === 'rejected') {
+        const reason = window.prompt('يرجى إدخال سبب رفض طلب العضوية (3 أحرف على الأقل):')?.trim() || '';
+        if (reason.length < 3) {
+          setError('يجب إدخال سبب واضح للرفض. لم يتم تنفيذ أي إجراء.');
+          return;
+        }
+        const { data, error: rejectError } = await client.functions.invoke('admin-reject-membership', {
+          body: { requestId: id, reason },
+        });
+        if (rejectError) throw rejectError;
+        if (!data?.success) throw new Error(data?.error || 'تعذر إتمام رفض الطلب.');
+        setNotice('تم رفض الطلب وحذف حساب المتقدم وبياناته وفق إجراء الرفض، مع الاحتفاظ بسجل التدقيق.');
+      } else {
+        const { error: approveError } = await client.rpc('admin_review_membership', {
+          p_request_id: id, p_status: 'approved', p_admin_notes: null,
+        });
+        if (approveError) throw approveError;
+        setNotice('تم اعتماد طلب العضوية.');
+      }
+      await loadAccount();
+    } catch (e:any) {
+      setError(e?.message || 'تعذر تنفيذ قرار طلب العضوية.');
+    } finally {
+      setBusy(false);
+    }
   };
   const changeRole = async (userId:string, role:Role) => {
     if (!client) return;
