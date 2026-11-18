@@ -42,6 +42,7 @@ export const AdminModulesPanel: React.FC = () => {
   const [committeeUser,setCommitteeUser] = useState<Record<string,string>>({});
   const [committeeRole,setCommitteeRole] = useState<Record<string,string>>({});
   const [pageDrafts,setPageDrafts] = useState<Record<string,string>>({});
+  const [currentUserId,setCurrentUserId] = useState('');
   const [form,setForm] = useState<Record<string,string>>({});
   const [busy,setBusy] = useState(false);
   const [error,setError] = useState('');
@@ -49,6 +50,8 @@ export const AdminModulesPanel: React.FC = () => {
   const load = useCallback(async () => {
     if (!client) return;
     setBusy(true); setError('');
+    const {data:userData} = await client.auth.getUser();
+    setCurrentUserId(userData.user?.id || '');
     const table = tab === 'calendar' ? 'club_calendar_events' : tab === 'pages' ? 'site_pages' : tab;
     const query = tab === 'messages'
       ? client.from('admin_messages').select('id,sender_id,recipient_id,subject,body,created_at,read_at').order('created_at',{ascending:false}).limit(100)
@@ -159,7 +162,7 @@ export const AdminModulesPanel: React.FC = () => {
       <button disabled={busy} className="md:col-span-2 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 px-4 py-3 font-bold disabled:opacity-50">{busy?'جارٍ الحفظ…':'حفظ السجل'}</button>
     </form>
     <div className="space-y-2"><div className="flex justify-between items-center"><h3 className="font-bold">السجلات الحالية ({rows.length})</h3><button onClick={()=>void load()} className="text-xs text-cyan-300">تحديث</button></div>
-      {rows.map(row=><article key={row.id} className="rounded-xl border border-cyan-950 p-3 space-y-2"><div className="flex flex-wrap justify-between gap-2"><div><p className="font-semibold text-sm">{displayRow(row)}</p><p className="text-xs text-slate-400 mt-1">{row.status||row.visibility||row.created_at||''}</p>{tab==='messages'&&<p className="text-xs text-slate-300 mt-2 whitespace-pre-wrap">{row.body}</p>}</div>{tab==='messages'&&!row.read_at&&true&&<button onClick={()=>void markRead(row.id)} className="text-xs text-cyan-300">تحديد كمقروء</button>}</div>{tab==='pages'&&<><textarea rows={5} value={pageDrafts[row.id]??JSON.stringify(row.content??{},null,2)} onChange={e=>setPageDrafts(old=>({...old,[row.id]:e.target.value}))} className={styles}/><div className="flex flex-wrap gap-2"><button disabled={busy} onClick={()=>void savePageContent(row)} className="rounded-lg bg-cyan-900 px-3 py-2 text-xs">حفظ المحتوى وإنشاء نسخة</button><button disabled={busy} onClick={()=>void togglePagePublish(row)} className="rounded-lg bg-amber-700 px-3 py-2 text-xs">{row.status==='published'?'إلغاء النشر':'نشر الصفحة'}</button></div></>}</article>)}
+      {rows.map(row=><article key={row.id} className="rounded-xl border border-cyan-950 p-3 space-y-2"><div className="flex flex-wrap justify-between gap-2"><div><p className="font-semibold text-sm">{displayRow(row)}</p><p className="text-xs text-slate-400 mt-1">{row.status||row.visibility||row.created_at||''}</p>{tab==='messages'&&<p className="text-xs text-slate-300 mt-2 whitespace-pre-wrap">{row.body}</p>}</div>{tab==='messages'&&!row.read_at&&row.recipient_id===currentUserId&&<button onClick={()=>void markRead(row.id)} className="text-xs text-cyan-300">تحديد كمقروء</button>}</div>{tab==='pages'&&<><textarea rows={5} value={pageDrafts[row.id]??JSON.stringify(row.content??{},null,2)} onChange={e=>setPageDrafts(old=>({...old,[row.id]:e.target.value}))} className={styles}/><div className="flex flex-wrap gap-2"><button disabled={busy} onClick={()=>void savePageContent(row)} className="rounded-lg bg-cyan-900 px-3 py-2 text-xs">حفظ المحتوى وإنشاء نسخة</button><button disabled={busy} onClick={()=>void togglePagePublish(row)} className="rounded-lg bg-amber-700 px-3 py-2 text-xs">{row.status==='published'?'إلغاء النشر':'نشر الصفحة'}</button></div></>}</article>)}
       {!rows.length&&<p className="text-sm text-slate-500">لا توجد سجلات في هذا القسم بعد.</p>}
     </div></>}
   </section>;
