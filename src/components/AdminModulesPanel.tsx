@@ -13,14 +13,14 @@ const labels: Record<string,string> = {
   title:'العنوان',description:'الوصف',status:'الحالة',start_date:'تاريخ البداية',due_date:'آخر أجل',
   starts_at:'تاريخ ووقت البداية',ends_at:'تاريخ ووقت النهاية',location:'المكان',
   partner_name:'اسم الشريك',partner_type:'نوع الشراكة',contact_name:'اسم جهة الاتصال',
-  contact_email:'البريد',contact_phone:'الهاتف',slug:'الرابط المختصر',body:'نص الرسالة',capacity:'عدد المقاعد',instructor_id:'المدرب',
+  contact_email:'البريد',contact_phone:'الهاتف',slug:'الرابط المختصر',body:'نص الرسالة',instructor_id:'المدرب',
   subject:'الموضوع',recipient_id:'المستلم',visibility:'الظهور',event_type:'نوع الحدث',
   agenda:'جدول الأعمال'
 };
 const fields: Record<ModuleKey,string[]> = {
   projects:['title','description','status','start_date','due_date'],
   committees:[],
-  courses:['title','description','instructor_id','capacity','starts_at','ends_at','location','status'],
+  courses:['title','description','instructor_id','starts_at','ends_at','location','status'],
   meetings:['title','agenda','starts_at','ends_at','location','meeting_type','committee_id'],
   partnerships:['partner_name','partner_type','description','contact_name','contact_email','contact_phone','starts_on','ends_on','status'],
   calendar:['title','description','starts_at','ends_at','location','event_type','visibility'],
@@ -110,7 +110,6 @@ export const AdminModulesPanel: React.FC = () => {
     for (const [key,value] of Object.entries(form)) {
       if (!value.trim()) continue;
       if (key.endsWith('_at')) payload[key] = new Date(value).toISOString();
-      else if (key==='capacity') payload[key] = Number(value);
       else payload[key] = value.trim();
     }
     if (tab === 'messages') payload.sender_id = (await client.auth.getUser()).data.user?.id;
@@ -253,7 +252,6 @@ export const AdminModulesPanel: React.FC = () => {
         {key==='recipient_id' ? <select required value={form[key]||''} onChange={e=>setField(key,e.target.value)} className={styles}><option value="">اختر عضواً من الإدارة</option>{people.map(p=><option key={p.id} value={p.id}>{p.full_name||p.id}</option>)}</select>
         : key==='status' ? <select value={form[key]|| (tab==='projects'?'planning':tab==='courses'?'draft':tab==='partnerships'?'prospective':'scheduled')} onChange={e=>setField(key,e.target.value)} className={styles}>{(tab==='projects'?['planning','active','on_hold','completed','cancelled']:tab==='courses'?['draft','open','in_progress','completed','cancelled']:tab==='partnerships'?['prospective','active','expired','terminated']:['scheduled','held','cancelled']).map(v=><option key={v}>{v}</option>)}</select>
         : key==='instructor_id' ? <select value={form[key]||''} onChange={e=>setField(key,e.target.value)} className={styles}><option value="">اختر المدرب (اختياري)</option>{people.map(p=><option key={p.id} value={p.id}>{p.full_name||p.id}</option>)}</select>
-        : key==='capacity' ? <input type="number" min="1" step="1" value={form[key]||''} onChange={e=>setField(key,e.target.value)} className={styles}/>
         : key==='meeting_type' ? <select value={form[key]||'administrative'} onChange={e=>setField(key,e.target.value)} className={styles}>{['administrative','committee','project','general'].map(v=><option key={v} value={v}>{v}</option>)}</select>
         : key==='committee_id' ? <select value={form[key]||''} onChange={e=>setField(key,e.target.value)} className={styles}><option value="">دون لجنة محددة</option>{meetingCommittees.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select>
         : key==='visibility' ? <select value={form[key]||'members'} onChange={e=>setField(key,e.target.value)} className={styles}><option value="public">عام</option><option value="members">الأعضاء</option><option value="admin">الإدارة</option></select>
