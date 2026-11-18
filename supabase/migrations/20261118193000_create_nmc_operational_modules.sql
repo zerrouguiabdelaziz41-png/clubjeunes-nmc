@@ -251,8 +251,10 @@ create policy project_tasks_admin_manage on public.project_tasks
 for all to authenticated using ((select private.is_active_nmc_admin()))
 with check ((select private.is_active_nmc_admin()));
 
-create policy courses_read_open_or_approved on public.courses
-for select to anon, authenticated using (
+create policy courses_public_open_read on public.courses
+for select to anon using (status = 'open');
+create policy courses_authenticated_read on public.courses
+for select to authenticated using (
   status = 'open' or (select private.is_approved_nmc_member())
 );
 create policy courses_admin_manage on public.courses
@@ -304,7 +306,7 @@ for select to authenticated using (
   (select private.is_active_nmc_admin())
   or exists (
     select 1 from public.meeting_attendees a
-    where a.meeting_id = meeting_id and a.user_id = (select auth.uid())
+    where a.meeting_id = meeting_minutes.meeting_id and a.user_id = (select auth.uid())
   )
 );
 create policy meeting_minutes_admin_manage on public.meeting_minutes
@@ -319,7 +321,8 @@ with check ((select private.is_active_nmc_admin()));
 
 create policy admin_messages_participants_read on public.admin_messages
 for select to authenticated using (
-  sender_id = (select auth.uid()) or recipient_id = (select auth.uid())
+  (select private.is_active_nmc_admin())
+  and (sender_id = (select auth.uid()) or recipient_id = (select auth.uid()))
 );
 create policy admin_messages_admin_send on public.admin_messages
 for insert to authenticated with check (
