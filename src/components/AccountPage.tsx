@@ -37,6 +37,7 @@ export const AccountPage: React.FC<Props> = ({ onBackToHome, onOpenCardModal, on
   const [requests, setRequests] = useState<any[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
   const [registrations, setRegistrations] = useState<any[]>([]);
+  const [adminRegistrations,setAdminRegistrations] = useState<any[]>([]);
   const [people, setPeople] = useState<any[]>([]);
   const [assignments, setAssignments] = useState<any[]>([]);
   const [selectedOrganizer, setSelectedOrganizer] = useState('');
@@ -63,15 +64,16 @@ export const AccountPage: React.FC<Props> = ({ onBackToHome, onOpenCardModal, on
       setProfile({ ...p, role: safeRole });
       setEditFullName(p.full_name||''); setEditPhone(p.phone||''); setEditInterests(p.interests||'');
       if (safeRole === 'admin' && p.membership_status === 'approved') {
-        const [r, a, pList, assigned] = await Promise.all([
+        const [r, a, pList, assigned, activityRegs] = await Promise.all([
           client.from('membership_requests').select('id,user_id,motivation,status,created_at,admin_notes').eq('status','pending').order('created_at',{ascending:false}),
           client.from('activities').select('id,title,description,location,starts_at,published,review_status,created_by').order('created_at',{ascending:false}),
           client.from('profiles').select('id,full_name,phone,role,membership_status').order('full_name'),
-          client.from('organizers').select('id,user_id,activity_id,profiles(full_name),activities(title)').order('assigned_at',{ascending:false})
+          client.from('organizers').select('id,user_id,activity_id,profiles(full_name),activities(title)').order('assigned_at',{ascending:false}),
+          client.from('registrations').select('id,status,created_at,profiles(full_name),activities(title)').order('created_at',{ascending:false})
         ]);
         if (r.error) throw r.error; if (a.error) throw a.error;
-        if (pList.error) throw pList.error; if (assigned.error) throw assigned.error;
-        setRequests(r.data || []); setActivities(a.data || []); setPeople(pList.data || []); setAssignments(assigned.data || []);
+        if (pList.error) throw pList.error; if (assigned.error) throw assigned.error; if (activityRegs.error) throw activityRegs.error;
+        setRequests(r.data || []); setActivities(a.data || []); setPeople(pList.data || []); setAssignments(assigned.data || []); setAdminRegistrations(activityRegs.data||[]);
       } else if (safeRole === 'organizer' && p.membership_status === 'approved') {
         const { data: assigned, error: assignedError } = await client.from('organizers').select('activity_id, activities(id,title,description,location,starts_at,published,review_status)').eq('user_id', user.id);
         if (assignedError) throw assignedError;
@@ -222,6 +224,13 @@ export const AccountPage: React.FC<Props> = ({ onBackToHome, onOpenCardModal, on
     else { setNotice('تم إلغاء إسناد النشاط.'); await loadAccount(); }
     setBusy(false);
   };
+  const updateActivityRegistration = async (id:string,status:'registered'|'cancelled'|'attended') => {
+    if(!client)return;
+    setBusy(true);setError('');setNotice('');
+    const {error:e}=await client.from('registrations').update({status}).eq('id',id);
+    if(e)setError(e.message);else{setNotice('تم تحديث حالة تسجيل النشاط.');await loadAccount();}
+    setBusy(false);
+  };
   const reviewActivity = async (id:string, status:'approved'|'rejected') => {
     if (!client) return; setBusy(true); setError('');
     const { error: rpcError } = await client.rpc('admin_review_activity', { p_activity_id:id, p_decision:status });
@@ -308,6 +317,7 @@ export const AccountPage: React.FC<Props> = ({ onBackToHome, onOpenCardModal, on
           </section>
           <section className="rounded-3xl border border-cyan-900 bg-[#06182c] p-5"><h3 className="font-bold flex items-center gap-2 mb-4"><ClipboardList className="text-amber-400"/> طلبات الانضمام المعلقة ({requests.length})</h3>
             {requests.length===0?<p className="text-sm text-slate-400">لا توجد طلبات معلقة.</p>:requests.map((r:any)=><div key={r.id} className="border-t border-cyan-950 py-3 flex flex-wrap justify-between gap-3"><div><p className="text-sm">{people.find((person:any)=>person.id===r.user_id)?.full_name || 'طلب عضوية'} — {new Date(r.created_at).toLocaleDateString('ar-DZ')}</p><p className="text-xs text-slate-400 mt-1">{r.motivation || 'لا توجد رسالة مرفقة'}</p><p className="text-[11px] text-slate-500">{people.find((person:any)=>person.id===r.user_id)?.phone || 'رقم الهاتف غير متوفر'} · رقم الطلب: {r.id}</p></div><div className="flex gap-2"><button disabled={busy} onClick={()=>void reviewMembership(r.id,'approved')} className="rounded-lg bg-emerald-800 px-3 py-2 text-xs flex items-center gap-1"><Check size={14}/> اعتماد</button><button disabled={busy} onClick={()=>void reviewMembership(r.id,'rejected')} className="rounded-lg bg-rose-900 px-3 py-2 text-xs flex items-center gap-1"><X size={14}/> رفض</button></div></div>)}</section>
+          <section className="rounded-3xl border border-cyan-900 bg-[#06182c] p-5"><h3 className="font-bold mb-3">تسجيلات الأنشطة ({adminRegistrations.length})</h3>{adminRegistrations.length?adminRegistrations.map((registration:any)=><div key={registration.id} className="border-t border-cyan-950 py-3 flex flex-wrap items-center justify-between gap-3"><div><p className="text-sm font-semibold">{registration.profiles?.full_name||'عضو'} — {registration.activities?.title||'نشاط'}</p><p className="text-xs text-slate-400">{new Date(registration.created_at).toLocaleDateString('ar-DZ')}</p></div><select aria-label="حالة تسجيل النشاط" disabled={busy} value={registration.status} onChange={e=>void updateActivityRegistration(registration.id,e.target.value as any)} className="rounded-lg bg-[#030e1c] border border-cyan-900 p-2 text-xs"><option value="registered">مسجل</option><option value="attended">حضر</option><option value="cancelled">ملغى</option></select></div>):<p className="text-sm text-slate-400">لا توجد تسجيلات في الأنشطة حالياً.</p>}</section>
           <section className="rounded-3xl border border-cyan-900 bg-[#06182c] p-5"><h3 className="font-bold mb-4">مراجعة الأنشطة</h3>{activities.length===0?<p className="text-sm text-slate-400">لا توجد أنشطة.</p>:activities.map((a:any)=><div key={a.id} className="border-t border-cyan-950 py-3 flex flex-wrap justify-between gap-3"><div><p className="text-sm font-bold">{a.title}</p><p className="text-xs text-slate-400">{a.location || 'دون موقع'} — {a.review_status}</p></div>{a.review_status==='pending'&&<div className="flex gap-2"><button disabled={busy} onClick={()=>void reviewActivity(a.id,'approved')} className="rounded-lg bg-emerald-800 px-3 py-2 text-xs">نشر</button><button disabled={busy} onClick={()=>void reviewActivity(a.id,'rejected')} className="rounded-lg bg-rose-900 px-3 py-2 text-xs">رفض</button></div>}</div>)}</section>
           <section className="rounded-3xl border border-cyan-900 bg-[#06182c] p-5">
             <h3 className="font-bold mb-4">إدارة صلاحيات المشرفين</h3>
