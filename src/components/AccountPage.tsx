@@ -10,7 +10,7 @@ import { MemberMeetingsPanel } from './MemberMeetingsPanel.tsx';
 import { MemberTasksPanel } from './MemberTasksPanel.tsx';
 
 type Role = 'member' | 'organizer' | 'admin';
-type Profile = { id: string; membership_number?: string | null; full_name: string; phone: string | null; interests: string | null; role: Role; membership_status: 'pending' | 'approved' | 'rejected' | 'revoked'; created_at: string };
+type Profile = { id: string; membership_number?: string | null; full_name: string; phone: string | null; interests: string | null; avatar_url?: string | null; role: Role; membership_status: 'pending' | 'approved' | 'rejected' | 'revoked'; created_at: string };
 interface Props {
   onBackToHome: () => void;
   onOpenCardModal: (member: MemberData) => void;
@@ -54,7 +54,7 @@ export const AccountPage: React.FC<Props> = ({ onBackToHome, onOpenCardModal, on
       if (authError || !authData.user) { setProfile(null); setSessionEmail(''); return; }
       const user = authData.user;
       setSessionEmail(user.email || '');
-      const { data: p, error: pError } = await client.from('profiles').select('id,membership_number,full_name,phone,interests,role,membership_status,created_at').eq('id', user.id).single();
+      const { data: p, error: pError } = await client.from('profiles').select('id,membership_number,full_name,phone,interests,avatar_url,role,membership_status,created_at').eq('id', user.id).single();
       if (pError) throw pError;
       const safeRole: Role = ['member','organizer','admin'].includes(p.role) ? p.role : 'member';
       setProfile({ ...p, role: safeRole });
@@ -241,7 +241,7 @@ export const AccountPage: React.FC<Props> = ({ onBackToHome, onOpenCardModal, on
   const memberCard: MemberData = profile ? {
     id: profile.id, membershipNumber: profile.membership_number || 'قيد تخصيص الرقم', name: profile.full_name || sessionEmail,
     role: profile.role, roleLabel: roleNames[profile.role], age: 0, phone: profile.phone || '', email: sessionEmail,
-    city: 'الجزائر', avatar: '', issueDate: profile.created_at?.slice(0,10) || '', expiryDate: '',
+    city: 'الجزائر', avatar: profile.avatar_url || '', issueDate: profile.created_at?.slice(0,10) || '', expiryDate: '',
     status: profile.membership_status === 'approved' ? 'active' : 'pending'
   } : ({} as MemberData);
 
