@@ -79,9 +79,170 @@ export const MembershipCardModal: React.FC<MembershipCardModalProps> = ({
     }
   };
 
-  const handleDownload = () => {
-    setDownloadSuccess(true);
-    setTimeout(() => setDownloadSuccess(false), 3000);
+  const handleDownload = async () => {
+    try {
+      const width = 1400;
+      const height = 880;
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('تعذر إنشاء صورة البطاقة');
+
+      const roundedRect = (x: number, y: number, w: number, h: number, r: number) => {
+        ctx.beginPath();
+        ctx.roundRect(x, y, w, h, r);
+      };
+      const loadImage = (src: string) => new Promise<HTMLImageElement>((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = reject;
+        image.src = src;
+      });
+
+      // بطاقة مستقلة عالية الدقة، مع رسم النص العربي باتجاه RTL.
+      ctx.fillStyle = '#020b16';
+      ctx.fillRect(0, 0, width, height);
+      const background = ctx.createLinearGradient(0, 0, width, height);
+      background.addColorStop(0, '#06182c');
+      background.addColorStop(0.55, '#040f1c');
+      background.addColorStop(1, '#020b16');
+      ctx.fillStyle = background;
+      roundedRect(8, 8, width - 16, height - 16, 38);
+      ctx.fill();
+
+      ctx.save();
+      roundedRect(10, 10, width - 20, height - 20, 36);
+      ctx.clip();
+      try {
+        const banner = await loadImage('/assets/aistudio/_____________38f0e34a.png');
+        ctx.globalAlpha = 0.62;
+        ctx.drawImage(banner, 10, 10, width - 20, 255);
+        ctx.globalAlpha = 1;
+      } catch {
+        ctx.fillStyle = '#0b2942';
+        ctx.fillRect(10, 10, width - 20, 255);
+      }
+      const shade = ctx.createLinearGradient(0, 10, 0, 265);
+      shade.addColorStop(0, 'rgba(2,11,22,0.15)');
+      shade.addColorStop(1, '#040f1c');
+      ctx.fillStyle = shade;
+      ctx.fillRect(10, 10, width - 20, 255);
+      ctx.restore();
+
+      ctx.strokeStyle = 'rgba(34,211,238,0.65)';
+      ctx.lineWidth = 5;
+      roundedRect(10, 10, width - 20, height - 20, 36);
+      ctx.stroke();
+
+      ctx.direction = 'rtl';
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 48px Arial, sans-serif';
+      ctx.fillText('نادي منبر الشاب المبدع', width - 75, 92);
+      ctx.fillStyle = '#fbbf24';
+      ctx.font = 'bold 27px Arial, sans-serif';
+      ctx.fillText('إبداع .. تواصل .. بناء.', width - 75, 137);
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#f97316';
+      ctx.font = 'bold 38px Arial, sans-serif';
+      ctx.fillText('بطاقة عضوية', 75, 88);
+      ctx.fillStyle = '#fcd34d';
+      ctx.font = 'bold 22px Arial, sans-serif';
+      ctx.fillText('MEMBERSHIP CARD', 75, 128);
+
+      // صورة العضو؛ عند تعذر تحميلها تظهر دائرة بديلة دون إيقاف التنزيل.
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(190, 490, 112, 0, Math.PI * 2);
+      ctx.fillStyle = '#f59e0b';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(190, 490, 101, 0, Math.PI * 2);
+      ctx.clip();
+      try {
+        if (member.avatar) {
+          const avatar = await loadImage(member.avatar);
+          ctx.drawImage(avatar, 89, 389, 202, 202);
+        } else {
+          throw new Error('No avatar');
+        }
+      } catch {
+        ctx.fillStyle = '#12334c';
+        ctx.fillRect(89, 389, 202, 202);
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.direction = 'rtl';
+        ctx.font = 'bold 72px Arial, sans-serif';
+        ctx.fillText((member.name || '؟').trim().charAt(0), 190, 515);
+      }
+      ctx.restore();
+
+      const infoX = 1020;
+      ctx.textAlign = 'right';
+      ctx.direction = 'rtl';
+      const rows = [
+        ['الاسم:', member.name],
+        ['رقم العضوية:', member.membershipNumber],
+        ['نوع العضوية:', member.roleLabel],
+        ['تاريخ الإصدار:', member.issueDate],
+      ];
+      rows.forEach(([label, value], index) => {
+        const y = 405 + index * 92;
+        ctx.fillStyle = '#67e8f9';
+        ctx.font = 'bold 27px Arial, sans-serif';
+        ctx.fillText(label, infoX, y);
+        ctx.fillStyle = index === 1 ? '#fbbf24' : '#ffffff';
+        ctx.font = 'bold 34px Arial, sans-serif';
+        ctx.fillText(String(value || '—'), infoX, y + 43);
+      });
+
+      // تضمين رمز QR الحقيقي من SVG المعروض على البطاقة.
+      const qrSvg = document.querySelector('#printable-membership-card svg') as SVGSVGElement | null;
+      if (qrSvg) {
+        const serialized = new XMLSerializer().serializeToString(qrSvg);
+        const qrImage = await loadImage(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(serialized)}`);
+        ctx.fillStyle = '#ffffff';
+        roundedRect(1090, 355, 235, 235, 22);
+        ctx.fill();
+        ctx.drawImage(qrImage, 1107, 372, 201, 201);
+      }
+
+      ctx.fillStyle = '#030c18';
+      ctx.fillRect(10, 730, width - 20, 140);
+      ctx.strokeStyle = 'rgba(8,145,178,0.5)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(10, 730);
+      ctx.lineTo(width - 10, 730);
+      ctx.stroke();
+      ctx.direction = 'rtl';
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#fcd34d';
+      ctx.font = 'bold 30px Arial, sans-serif';
+      ctx.fillText('معاً .. نصنع فرقاً', width - 75, 795);
+      ctx.fillStyle = '#a5f3fc';
+      ctx.font = 'bold 23px Arial, sans-serif';
+      ctx.fillText(`صلاحية البطاقة: ${member.expiryDate || '—'}`, width - 75, 840);
+
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((value) => value ? resolve(value) : reject(new Error('تعذر حفظ الصورة')), 'image/png');
+      });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `NMC-Membership-${member.membershipNumber || 'card'}.png`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      setDownloadSuccess(true);
+      setTimeout(() => setDownloadSuccess(false), 3000);
+    } catch (error) {
+      console.error('Membership card PNG export failed:', error);
+      setDownloadSuccess(false);
+      window.alert('تعذر إنشاء صورة البطاقة. يرجى المحاولة مرة أخرى.');
+    }
   };
 
   const handlePrint = () => {
