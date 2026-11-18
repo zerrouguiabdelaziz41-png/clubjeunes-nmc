@@ -224,7 +224,7 @@ export const MembershipCardModal: React.FC<MembershipCardModalProps> = ({
       ctx.fillText('معاً .. نصنع فرقاً', width - 75, 795);
       ctx.fillStyle = '#a5f3fc';
       ctx.font = 'bold 23px Arial, sans-serif';
-      ctx.fillText(`صلاحية البطاقة: ${member.expiryDate || '—'}`, width - 75, 840);
+      ctx.fillText(`صلاحية العضوية: ${member.expiryDate || (member.status === 'active' ? 'سارية ما دام الاعتماد قائماً' : 'غير سارية')}`, width - 75, 840);
 
       const blob = await new Promise<Blob>((resolve, reject) => {
         canvas.toBlob((value) => value ? resolve(value) : reject(new Error('تعذر حفظ الصورة')), 'image/png');
