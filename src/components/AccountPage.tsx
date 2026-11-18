@@ -267,7 +267,8 @@ export const AccountPage: React.FC<Props> = ({ onBackToHome, onOpenCardModal, on
   const memberCard: MemberData = profile ? {
     id: profile.id, membershipNumber: profile.membership_number || 'قيد تخصيص الرقم', name: profile.full_name || sessionEmail,
     role: profile.role, roleLabel: roleNames[profile.role], age: 0, phone: profile.phone || '', email: sessionEmail,
-    city: 'الجزائر', avatar: profile.avatar_url || '', issueDate: profile.created_at?.slice(0,10) || '',\n    expiryDate: profile.membership_status === 'approved' ? 'سارية ما دام الاعتماد قائماً' : 'غير سارية',
+    city: 'الجزائر', avatar: profile.avatar_url || '', issueDate: profile.created_at?.slice(0,10) || '',
+    expiryDate: profile.membership_status === 'approved' ? 'سارية ما دام الاعتماد قائماً' : 'غير سارية',
     status: profile.membership_status === 'approved' ? 'active' : 'pending'
   } : ({} as MemberData);
 
