@@ -4,6 +4,7 @@ import { getSupabaseClient } from '../lib/supabase.ts';
 import { Language } from '../data/translations.ts';
 import { MemberData } from './MembershipCardModal.tsx';
 import { AdminModulesPanel } from './AdminModulesPanel.tsx';
+import { ProjectTasksPanel } from './ProjectTasksPanel.tsx';
 
 type Role = 'member' | 'organizer' | 'admin';
 type Profile = { id: string; membership_number?: string | null; full_name: string; phone: string | null; interests: string | null; role: Role; membership_status: 'pending' | 'approved' | 'rejected' | 'revoked'; created_at: string };
