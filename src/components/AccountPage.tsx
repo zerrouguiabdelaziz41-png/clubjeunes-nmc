@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Home, User, LogOut, ShieldCheck, CalendarDays, ClipboardList, RefreshCw, Check, X, LockKeyhole, Camera } from 'lucide-react';
+import { Home, User, LogOut, ShieldCheck, CalendarDays, ClipboardList, RefreshCw, Check, X, LockKeyhole } from 'lucide-react';
 import { getSupabaseClient } from '../lib/supabase.ts';
 import { Language } from '../data/translations.ts';
 import { MemberData } from './MembershipCardModal.tsx';
