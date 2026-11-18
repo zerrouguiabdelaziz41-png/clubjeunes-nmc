@@ -208,7 +208,8 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({
         city: 'سوق أهراس، الجزائر',
         avatar: finalAvatarUrl,
         issueDate: new Date().toISOString().split('T')[0].replace(/-/g, '/'),
-        expiryDate: '2026/01/15',
+        // Expiry is set only after approval; a pending application is not an active card.
+        expiryDate: '',
         status: 'pending', // حالة طلب الانضمام معلّق للمراجعة
       };
 
