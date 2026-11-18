@@ -398,7 +398,7 @@ export const MembershipCardModal: React.FC<MembershipCardModalProps> = ({
             <div className="flex items-center gap-1.5 text-[11px] text-cyan-200">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
               <span>صلاحية البطاقة:</span>
-              <span className="font-mono text-white font-bold">{member.expiryDate}</span>
+              <span className="font-mono text-white font-bold">{member.expiryDate || (member.status === 'active' ? 'سارية ما دام الاعتماد قائماً' : 'غير سارية')}</span>
             </div>
           </div>
         </div>
