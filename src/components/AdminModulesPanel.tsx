@@ -39,6 +39,8 @@ export const AdminModulesPanel: React.FC = () => {
   const [rows,setRows] = useState<any[]>([]);
   const [committees,setCommittees] = useState<any[]>([]);
   const [people,setPeople] = useState<any[]>([]);
+  const [committeeUser,setCommitteeUser] = useState<Record<string,string>>({});
+  const [committeeRole,setCommitteeRole] = useState<Record<string,string>>({});
   const [form,setForm] = useState<Record<string,string>>({});
   const [busy,setBusy] = useState(false);
   const [error,setError] = useState('');
@@ -57,8 +59,11 @@ export const AdminModulesPanel: React.FC = () => {
         client.from('committees').select('*').order('id'),
         client.from('committee_members').select('*').order('joined_at',{ascending:false})
       ]);
+      const {data:approvedPeople,error:peopleError} = await client.from('profiles').select('id,full_name,membership_number').eq('membership_status','approved').order('full_name');
       if (c.error) setError(c.error.message);
       else setCommittees((c.data || []).map((x:any)=>({...x,members:(m.data||[]).filter((y:any)=>y.committee_id===x.id)})));
+      if (m.error) setError(m.error.message);
+      if (peopleError) setError(peopleError.message); else setPeople(approvedPeople || []);
     }
     if (tab === 'messages') {
       const {data:admins,error:adminError} = await client.from('profiles').select('id,full_name').eq('role','admin').eq('membership_status','approved');
@@ -87,11 +92,23 @@ export const AdminModulesPanel: React.FC = () => {
   };
   const addCommitteeMember = async (committeeId:string) => {
     if (!client) return;
-    const userId = window.prompt('أدخل معرّف حساب العضو (UUID) لإضافته إلى اللجنة:')?.trim();
-    if (!userId) return;
+    const userId = committeeUser[committeeId];
+    const role = committeeRole[committeeId] || 'member';
+    if (!userId) { setError('اختر عضواً معتمداً أولاً.'); return; }
+    setBusy(true); setError(''); setNotice('');
+    const {error:e} = await client.from('committee_members').insert({committee_id:committeeId,user_id:userId,committee_role:role});
+    if (e) setError(e.message); else {
+      setNotice(role === 'chair' ? 'تم تعيين رئيس اللجنة.' : 'تمت إضافة العضو إلى اللجنة.');
+      setCommitteeUser(old=>({...old,[committeeId]:''}));
+      await load();
+    }
+    setBusy(false);
+  };
+  const toggleCommitteeMember = async (id:string,isActive:boolean) => {
+    if (!client) return;
     setBusy(true); setError('');
-    const {error:e} = await client.from('committee_members').insert({committee_id:committeeId,user_id:userId,committee_role:'member'});
-    if (e) setError(e.message); else {setNotice('تمت إضافة العضو إلى اللجنة.'); await load();}
+    const {error:e} = await client.from('committee_members').update({is_active:!isActive}).eq('id',id);
+    if (e) setError(e.message); else {setNotice('تم تحديث حالة عضوية اللجنة.'); await load();}
     setBusy(false);
   };
   const markRead = async (id:string) => {
@@ -104,7 +121,7 @@ export const AdminModulesPanel: React.FC = () => {
     <div className="flex gap-2 overflow-x-auto pb-2">{tabs.map(t=><button key={t.key} onClick={()=>{setTab(t.key);setForm({});setNotice('');}} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-bold border ${tab===t.key?'bg-cyan-800 border-cyan-500 text-white':'bg-[#030e1c] border-cyan-950 text-slate-300'}`}>{t.label}</button>)}</div>
     {error && <p role="alert" className="rounded-xl bg-rose-950/40 border border-rose-800 p-3 text-sm text-rose-200">{error}</p>}
     {notice && <p className="rounded-xl bg-emerald-950/40 border border-emerald-800 p-3 text-sm text-emerald-200">{notice}</p>}
-    {tab==='committees' ? <div className="grid md:grid-cols-2 gap-3">{committees.map((c:any)=><article key={c.id} className="rounded-2xl border border-cyan-950 p-4"><h3 className="font-bold">{c.name || c.title || c.committee_name || 'لجنة'}</h3><p className="text-xs text-slate-500 mt-1">{c.description || '—'}</p><p className="text-xs text-cyan-300 mt-3">عدد الأعضاء: {c.members.length}</p><button disabled={busy} onClick={()=>void addCommitteeMember(c.id)} className="mt-3 rounded-lg bg-cyan-900 px-3 py-2 text-xs">إضافة عضو للجنة</button></article>)}{!committees.length&&<p className="text-sm text-slate-400">لم تُسجل لجان بعد في جدول اللجان.</p>}</div>
+    {tab==='committees' ? <div className="grid md:grid-cols-2 gap-3">{committees.map((c:any)=><article key={c.id} className="rounded-2xl border border-cyan-950 p-4"><h3 className="font-bold">{c.name || c.title || c.committee_name || 'لجنة'}</h3><p className="text-xs text-slate-500 mt-1">{c.description || '—'}</p><p className="text-xs text-cyan-300 mt-3">عدد الأعضاء: {c.members.filter((m:any)=>m.is_active).length}</p><div className="mt-3 space-y-2">{c.members.map((m:any)=><div key={m.id} className="flex items-center justify-between gap-2 text-xs border-t border-cyan-950 pt-2"><span>{people.find((p:any)=>p.id===m.user_id)?.full_name || 'عضو'} · {m.committee_role==='chair'?'رئيس اللجنة':'عضو'} · {m.is_active?'نشط':'غير نشط'}</span><button disabled={busy} onClick={()=>void toggleCommitteeMember(m.id,m.is_active)} className="text-amber-300">{m.is_active?'تعطيل':'تفعيل'}</button></div>)}</div><div className="mt-3 grid sm:grid-cols-[1fr_auto_auto] gap-2"><select value={committeeUser[c.id]||''} onChange={e=>setCommitteeUser(old=>({...old,[c.id]:e.target.value}))} className={styles}><option value="">اختر عضواً معتمداً</option>{people.filter((p:any)=>!c.members.some((m:any)=>m.user_id===p.id)).map((p:any)=><option key={p.id} value={p.id}>{p.full_name || p.membership_number || p.id}</option>)}</select><select value={committeeRole[c.id]||'member'} onChange={e=>setCommitteeRole(old=>({...old,[c.id]:e.target.value}))} className={styles}><option value="member">عضو</option><option value="chair">رئيس</option></select><button disabled={busy||!committeeUser[c.id]} onClick={()=>void addCommitteeMember(c.id)} className="rounded-lg bg-cyan-900 px-3 py-2 text-xs">إضافة</button></div></article>)}{!committees.length&&<p className="text-sm text-slate-400">لم تُسجل لجان بعد في جدول اللجان.</p>}</div>
     : <><form onSubmit={submit} className="grid md:grid-cols-2 gap-3">
       {fields[tab].map(key=><label key={key} className={`text-sm ${key==='description'||key==='body'||key==='agenda'?'md:col-span-2':''}`}>{labels[key]||key}
         {key==='recipient_id' ? <select required value={form[key]||''} onChange={e=>setField(key,e.target.value)} className={styles}><option value="">اختر عضواً من الإدارة</option>{people.map(p=><option key={p.id} value={p.id}>{p.full_name||p.id}</option>)}</select>
