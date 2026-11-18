@@ -146,6 +146,7 @@ export const AccountPage: React.FC<Props> = ({ onBackToHome, onOpenCardModal, on
     setError('');
     setAvatarFile(file);
     setAvatarPreview(URL.createObjectURL(file));
+    e.target.value = '';
   };
   useEffect(() => () => {
     if (avatarPreview.startsWith('blob:')) URL.revokeObjectURL(avatarPreview);
@@ -347,11 +348,11 @@ export const AccountPage: React.FC<Props> = ({ onBackToHome, onOpenCardModal, on
             </div>
             <div className="flex-1 min-w-[220px]">
               <label className="block text-sm font-semibold">الصورة الشخصية
-                <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleAvatarSelection} disabled={busy} className="mt-2 block w-full text-xs text-slate-300 file:mr-3 file:rounded-lg file:border-0 file:bg-cyan-900 file:px-3 file:py-2 file:text-white"/>
+                <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleAvatarSelection} disabled={busy || !['pending','approved'].includes(profile.membership_status)} className="mt-2 block w-full text-xs text-slate-300 file:mr-3 file:rounded-lg file:border-0 file:bg-cyan-900 file:px-3 file:py-2 file:text-white"/>
               </label>
               <p className="text-[11px] text-slate-500 mt-1">JPG أو PNG أو WebP — بحد أقصى 2 ميغابايت.</p>
             </div>
-            {avatarFile && <button type="button" onClick={()=>void saveAvatar()} disabled={busy} className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-bold disabled:opacity-50">{busy?'جارٍ الرفع…':'حفظ الصورة'}</button>}
+            {avatarFile && <button type="button" onClick={()=>void saveAvatar()} disabled={busy || !['pending','approved'].includes(profile.membership_status)} className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-bold disabled:opacity-50">{busy?'جارٍ الرفع…':'حفظ الصورة'}</button>}
           </div>
           <form onSubmit={saveAccountProfile} className="grid sm:grid-cols-2 gap-3">
             <label className="block text-sm">الاسم الكامل<input required minLength={2} maxLength={160} value={editFullName} onChange={e=>setEditFullName(e.target.value)} className="mt-1 w-full rounded-xl bg-[#030e1c] border border-cyan-900 p-3 text-white"/></label>
