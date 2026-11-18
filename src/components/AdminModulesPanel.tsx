@@ -139,6 +139,11 @@ export const AdminModulesPanel: React.FC = () => {
     setBusy(true); setError(''); setNotice('');
     const {error:e} = await client.from('committee_members').insert({committee_id:committeeId,user_id:userId,committee_role:role});
     if (e) setError(e.message); else {
+      if (role === 'chair') {
+        const chair=people.find((p:any)=>p.id===userId);
+        const {error:chairError}=await client.from('committees').update({chair_user_id:userId,chair_name:chair?.full_name||null,updated_at:new Date().toISOString()}).eq('id',committeeId);
+        if (chairError) setError('تمت إضافة العضو لكن تعذر تحديث بيانات رئيس اللجنة: '+chairError.message);
+      }
       setNotice(role === 'chair' ? 'تم تعيين رئيس اللجنة.' : 'تمت إضافة العضو إلى اللجنة.');
       setCommitteeUser(old=>({...old,[committeeId]:''}));
       await load();
@@ -152,7 +157,14 @@ export const AdminModulesPanel: React.FC = () => {
     if (demoteError) {setError(demoteError.message);setBusy(false);return;}
     const {error:promoteError} = await client.from('committee_members').update({committee_role:'chair',is_active:true}).eq('id',memberId);
     if (promoteError) setError(promoteError.message);
-    else setNotice('تم تحديث رئيس اللجنة.'); 
+    else {
+      const committee=committees.find((x:any)=>x.id===committeeId);
+      const targetMember=committee?.members.find((x:any)=>x.id===memberId);
+      const chair=people.find((p:any)=>p.id===targetMember?.user_id);
+      const {error:chairError}=await client.from('committees').update({chair_user_id:targetMember?.user_id,chair_name:chair?.full_name||null,updated_at:new Date().toISOString()}).eq('id',committeeId);
+      if (chairError) setError('تم تعيين الرئيس في سجل الأعضاء لكن تعذر تحديث بيانات اللجنة: '+chairError.message);
+      else setNotice('تم تحديث رئيس اللجنة.');
+    }
     await load(); setBusy(false);
   };
   const toggleCommitteeMember = async (id:string,isActive:boolean) => {
