@@ -118,7 +118,7 @@ export const SupabaseClubService = {
         email: '',
         city: '',
         avatar: '',
-        issueDate: verified.created_at?.slice(0, 10).replace(/-/g, '/') || '',
+        // Public verification intentionally returns no account-creation timestamp.\n        issueDate: '',
         expiryDate: '',
         status: 'active',
       },
