@@ -18,7 +18,7 @@ const labels: Record<string,string> = {
   agenda:'جدول الأعمال'
 };
 const fields: Record<ModuleKey,string[]> = {
-  projects:['title','description','status','start_date','due_date'],
+  projects:['title','description','status','start_date','due_date','committee_id','lead_user_id'],
   committees:[],
   courses:['title','description','instructor_id','starts_at','ends_at','location','status'],
   meetings:['title','agenda','starts_at','ends_at','location','meeting_type','committee_id'],
@@ -77,6 +77,14 @@ export const AdminModulesPanel: React.FC = () => {
     if (tab === 'messages') {
       const {data:admins,error:adminError} = await client.from('profiles').select('id,full_name').eq('role','admin').eq('membership_status','approved');
       if (adminError) setError(adminError.message); else setPeople(admins || []);
+    }
+    if (tab === 'projects') {
+      const [peopleResult,committeeResult] = await Promise.all([
+        client.from('profiles').select('id,full_name').eq('membership_status','approved').order('full_name'),
+        client.from('committees').select('id,name').eq('is_active',true).order('name')
+      ]);
+      if (peopleResult.error) setError(peopleResult.error.message); else setPeople(peopleResult.data||[]);
+      if (committeeResult.error) setError(committeeResult.error.message); else setMeetingCommittees(committeeResult.data||[]);
     }
     if (tab === 'courses') {
       const [enrollmentResult,peopleResult] = await Promise.all([
@@ -260,6 +268,8 @@ export const AdminModulesPanel: React.FC = () => {
       {fields[tab].map(key=><label key={key} className={`text-sm ${key==='description'||key==='body'||key==='agenda'?'md:col-span-2':''}`}>{labels[key]||key}
         {key==='recipient_id' ? <select required value={form[key]||''} onChange={e=>setField(key,e.target.value)} className={styles}><option value="">اختر عضواً من الإدارة</option>{people.map(p=><option key={p.id} value={p.id}>{p.full_name||p.id}</option>)}</select>
         : key==='status' ? <select value={form[key]|| (tab==='projects'?'planning':tab==='courses'?'draft':tab==='partnerships'?'prospective':'scheduled')} onChange={e=>setField(key,e.target.value)} className={styles}>{(tab==='projects'?['planning','active','on_hold','completed','cancelled']:tab==='courses'?['draft','open','in_progress','completed','cancelled']:tab==='partnerships'?['prospective','active','expired','terminated']:['scheduled','held','cancelled']).map(v=><option key={v}>{v}</option>)}</select>
+        : key==='committee_id' ? <select value={form[key]||''} onChange={e=>setField(key,e.target.value)} className={styles}><option value="">دون لجنة</option>{meetingCommittees.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select>
+        : key==='lead_user_id' ? <select value={form[key]||''} onChange={e=>setField(key,e.target.value)} className={styles}><option value="">اختر مسؤول المشروع</option>{people.map(p=><option key={p.id} value={p.id}>{p.full_name||p.id}</option>)}</select>
         : key==='instructor_id' ? <select value={form[key]||''} onChange={e=>setField(key,e.target.value)} className={styles}><option value="">اختر المدرب (اختياري)</option>{people.map(p=><option key={p.id} value={p.id}>{p.full_name||p.id}</option>)}</select>
         : key==='meeting_type' ? <select value={form[key]||'administrative'} onChange={e=>setField(key,e.target.value)} className={styles}>{['administrative','committee','project','general'].map(v=><option key={v} value={v}>{v}</option>)}</select>
         : key==='committee_id' ? <select value={form[key]||''} onChange={e=>setField(key,e.target.value)} className={styles}><option value="">دون لجنة محددة</option>{meetingCommittees.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select>
