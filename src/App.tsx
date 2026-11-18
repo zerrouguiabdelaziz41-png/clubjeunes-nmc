@@ -77,6 +77,11 @@ export default function App() {
         currentLanguage={currentLanguage}
         onSelectLanguage={setCurrentLanguage}
         onNavigate={(tab) => {
+          if (tab === 'activities') {
+            setActiveTab('activities');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            return;
+          }
           if (tab === 'about') {
             setActiveTab('about');
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -164,12 +169,8 @@ export default function App() {
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
         onOpenActivities={() => {
-          if (activeTab !== 'home') {
-            setActiveTab('home');
-            setTimeout(() => scrollToSection('activities-section'), 50);
-          } else {
-            scrollToSection('activities-section');
-          }
+          setActiveTab('activities');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
       />
 
@@ -201,6 +202,14 @@ export default function App() {
             }}
             language={currentLanguage}
             onOpenJoin={() => setIsJoinOpen(true)}
+          />
+        ) : activeTab === 'activities' ? (
+          <PublishedActivitiesPanel
+            pageMode
+            onBackToHome={() => {
+              setActiveTab('home');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
           />
         ) : activeTab === 'events' ? (
           <EventsPage
