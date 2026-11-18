@@ -254,7 +254,7 @@ export const VerificationPage: React.FC<VerificationPageProps> = ({
                   <ShieldCheck className="w-4 h-4 text-emerald-400" />
                   <span>تاريخ انتهاء العضوية</span>
                 </span>
-                <span className="text-emerald-400 font-bold font-mono">{currentMember.expiryDate}</span>
+                <span className="text-emerald-400 font-bold font-mono">{currentMember.expiryDate || (currentMember.status === 'active' ? 'سارية ما دام الاعتماد قائماً' : 'غير سارية')}</span>
               </div>
             </div>
 
