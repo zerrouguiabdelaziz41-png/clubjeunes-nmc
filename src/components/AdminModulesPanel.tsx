@@ -137,29 +137,16 @@ export const AdminModulesPanel: React.FC = () => {
     const role = committeeRole[committeeId] || 'member';
     if (!userId) { setError('اختر عضواً معتمداً أولاً.'); return; }
     setBusy(true); setError(''); setNotice('');
-    const {data:inserted,error:e} = await client.from('committee_members').insert({committee_id:committeeId,user_id:userId,committee_role:'member'}).select('id').single();
-    if (e) setError(e.message); else {
-      let operationError = '';
-      if (role === 'chair') {
-        const {error:demoteError}=await client.from('committee_members').update({committee_role:'member'}).eq('committee_id',committeeId).eq('committee_role','chair').eq('is_active',true);
-        if (demoteError) operationError = 'تعذّر إلغاء تعيين الرئيس السابق: '+demoteError.message;
-        else {
-          const {error:promoteError}=await client.from('committee_members').update({committee_role:'chair'}).eq('id',inserted.id);
-          if (promoteError) operationError = 'أُضيف العضو، لكن تعذّر تعيينه رئيساً: '+promoteError.message;
-          else {
-            const chair=people.find((p:any)=>p.id===userId);
-            const {error:chairError}=await client.from('committees').update({chair_user_id:userId,chair_name:chair?.full_name||null,updated_at:new Date().toISOString()}).eq('id',committeeId);
-            if (chairError) operationError = 'تم تحديث دور العضو، لكن تعذّر تحديث بيانات رئيس اللجنة: '+chairError.message;
-          }
-        }
-      }
-      if (operationError) setError(operationError);
-      else {
-        setNotice(role === 'chair' ? 'تم تعيين رئيس اللجنة.' : 'تمت إضافة العضو إلى اللجنة.');
-        setCommitteeUser(old=>({...old,[committeeId]:''}));
-      }
-      await load();
+    if (role === 'chair') {
+      const {error:e} = await client.rpc('admin_assign_committee_chair',{p_committee_id:committeeId,p_user_id:userId});
+      if (e) setError(e.message);
+      else { setNotice('تم تعيين رئيس اللجنة.'); setCommitteeUser(old=>({...old,[committeeId]:''})); }
+    } else {
+      const {error:e} = await client.from('committee_members').insert({committee_id:committeeId,user_id:userId,committee_role:'member'});
+      if (e) setError(e.code==='23505'?'هذا العضو موجود في اللجنة بالفعل.':e.message);
+      else { setNotice('تمت إضافة العضو إلى اللجنة.'); setCommitteeUser(old=>({...old,[committeeId]:''})); }
     }
+    await load();
     setBusy(false);
   };
   const setCommitteeChair = async (committeeId:string,memberId:string) => {
@@ -172,36 +159,16 @@ export const AdminModulesPanel: React.FC = () => {
       setBusy(false);
       return;
     }
-    const {error:demoteError} = await client.from('committee_members').update({committee_role:'member'}).eq('committee_id',committeeId).eq('committee_role','chair').eq('is_active',true);
-    if (demoteError) {setError(demoteError.message);setBusy(false);return;}
-    const {error:promoteError} = await client.from('committee_members').update({committee_role:'chair',is_active:true}).eq('id',memberId);
-    if (promoteError) setError('تعذّر تعيين الرئيس الجديد بعد إلغاء التعيين السابق: '+promoteError.message);
-    else {
-      const chair=people.find((p:any)=>p.id===targetMember.user_id);
-      const {error:chairError}=await client.from('committees').update({chair_user_id:targetMember.user_id,chair_name:chair?.full_name||null,updated_at:new Date().toISOString()}).eq('id',committeeId);
-      if (chairError) setError('تم تحديث دور الرئيس، لكن تعذر تحديث بيانات اللجنة: '+chairError.message);
-      else setNotice('تم تحديث رئيس اللجنة.');
-    }
+    const {error:e}=await client.rpc('admin_assign_committee_chair',{p_committee_id:committeeId,p_user_id:targetMember.user_id});
+    if (e) setError(e.message); else setNotice('تم تحديث رئيس اللجنة.');
     await load(); setBusy(false);
   };
   const toggleCommitteeMember = async (id:string,isActive:boolean) => {
     if (!client) return;
-    const committee=committees.find((x:any)=>x.members.some((m:any)=>m.id===id));
-    const member=committee?.members.find((m:any)=>m.id===id);
-    setBusy(true); setError('');
-    const {error:e} = await client.from('committee_members').update({is_active:!isActive}).eq('id',id);
-    if (e) setError(e.message);
-    else {
-      let chairSyncError = '';
-      if (member?.committee_role==='chair' && committee) {
-        const chair=people.find((p:any)=>p.id===member.user_id);
-        const {error:chairError}=await client.from('committees').update({chair_user_id:isActive?null:member.user_id,chair_name:isActive?null:(chair?.full_name||null),updated_at:new Date().toISOString()}).eq('id',committee.id);
-        if (chairError) chairSyncError = 'تم تحديث حالة العضوية، لكن تعذر مزامنة بيانات رئيس اللجنة: '+chairError.message;
-      }
-      if (chairSyncError) setError(chairSyncError);
-      else setNotice('تم تحديث حالة عضوية اللجنة.');
-      await load();
-    }
+    setBusy(true); setError(''); setNotice('');
+    const {error:e}=await client.rpc('admin_set_committee_member_active',{p_membership_id:id,p_is_active:!isActive});
+    if (e) setError(e.message); else setNotice('تم تحديث حالة عضوية اللجنة.');
+    await load();
     setBusy(false);
   };
   const savePageContent = async (page:any) => {
