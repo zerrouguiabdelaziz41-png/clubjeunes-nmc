@@ -259,7 +259,7 @@ export const AdminModulesPanel: React.FC = () => {
         : key==='visibility' ? <select value={form[key]||'members'} onChange={e=>setField(key,e.target.value)} className={styles}><option value="public">عام</option><option value="members">الأعضاء</option><option value="admin">الإدارة</option></select>
         : key==='event_type' ? <select value={form[key]||'general'} onChange={e=>setField(key,e.target.value)} className={styles}>{['activity','meeting','training','deadline','general'].map(v=><option key={v} value={v}>{v}</option>)}</select>
         : key==='description'||key==='body'||key==='agenda' ? <textarea required={key==='body'||key==='agenda'} rows={3} maxLength={20000} value={form[key]||''} onChange={e=>setField(key,e.target.value)} className={styles}/>
-        : <input required={['title','partner_name','slug','starts_at'].includes(key)} type={key.endsWith('_at')?'datetime-local':key.endsWith('_date')?'date':key==='contact_email'?'email':'text'} value={form[key]||''} onChange={e=>setField(key,e.target.value)} className={styles}/>}
+        : <input required={['title','partner_name','slug','starts_at'].includes(key)} type={key.endsWith('_at')?'datetime-local':(key.endsWith('_date')||key.endsWith('_on'))?'date':key==='contact_email'?'email':'text'} value={form[key]||''} onChange={e=>setField(key,e.target.value)} className={styles}/>}
       </label>)}
       <button disabled={busy} className="md:col-span-2 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 px-4 py-3 font-bold disabled:opacity-50">{busy?'جارٍ الحفظ…':'حفظ السجل'}</button>
     </form>
