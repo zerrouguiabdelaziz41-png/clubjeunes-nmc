@@ -5,7 +5,7 @@ import { Language } from '../data/translations.ts';
 import { MemberData } from './MembershipCardModal.tsx';
 
 type Role = 'member' | 'organizer' | 'admin';
-type Profile = { id: string; membership_number?: string | null; full_name: string; phone: string | null; interests: string | null; role: Role; membership_status: 'pending' | 'approved' | 'rejected'; created_at: string };
+type Profile = { id: string; membership_number?: string | null; full_name: string; phone: string | null; interests: string | null; role: Role; membership_status: 'pending' | 'approved' | 'rejected' | 'revoked'; created_at: string };
 interface Props {
   onBackToHome: () => void;
   onOpenCardModal: (member: MemberData) => void;
@@ -15,7 +15,7 @@ interface Props {
   language?: Language;
 }
 const roleNames: Record<Role, string> = { member: 'عضو', organizer: 'مشرف نشاط', admin: 'مدير الموقع' };
-const statusNames = { pending: 'قيد المراجعة', approved: 'معتمد', rejected: 'مرفوض' };
+const statusNames = { pending: 'قيد المراجعة', approved: 'معتمد', rejected: 'مرفوض', revoked: 'عضوية مسحوبة' };
 
 export const AccountPage: React.FC<Props> = ({ onBackToHome, onOpenCardModal, onOpenVerify }) => {
   const client = getSupabaseClient();
@@ -136,6 +136,25 @@ export const AccountPage: React.FC<Props> = ({ onBackToHome, onOpenCardModal, on
     }
     setBusy(false);
   };
+  const changeMembershipStatus = async (userId: string, action: 'revoke' | 'restore') => {
+    if (!client || !profile || profile.role !== 'admin') return;
+    let reason: string | null = null;
+    if (action === 'revoke') {
+      reason = window.prompt('أدخل سبب سحب العضوية (3 أحرف على الأقل):')?.trim() || '';
+      if (reason.length < 3) { setError('يجب إدخال سبب واضح لسحب العضوية. لم يتم تنفيذ أي إجراء.'); return; }
+      if (!window.confirm('سيتم سحب امتيازات العضوية مع الإبقاء على الحساب وسجل العضو لإمكانية الاستعادة. هل تريد المتابعة؟')) return;
+    } else if (!window.confirm('هل تريد استعادة العضوية؟ ستعود صلاحياتها السابقة المحفوظة.')) return;
+    setBusy(true); setError(''); setNotice('');
+    try {
+      const result = action === 'revoke'
+        ? await client.rpc('admin_revoke_membership', { p_user_id: userId, p_reason: reason })
+        : await client.rpc('admin_restore_membership', { p_user_id: userId });
+      if (result.error) throw result.error;
+      setNotice(action === 'revoke' ? 'تم سحب العضوية مع الاحتفاظ بالحساب والدور وسجل التدقيق.' : 'تمت استعادة العضوية مع الحفاظ على الدور السابق.');
+      await loadAccount();
+    } catch (e: any) { setError(e?.message || 'تعذر تحديث حالة العضوية.'); }
+    finally { setBusy(false); }
+  };
   const assignOrganizer = async () => {
     if (!client || !selectedOrganizer || !selectedActivity) return;
     setBusy(true); setError(''); setNotice('');
@@ -242,6 +261,8 @@ export const AccountPage: React.FC<Props> = ({ onBackToHome, onOpenCardModal, on
                   <div className="flex gap-2">
                     {person.membership_status === 'approved' && person.role === 'member' && <button disabled={busy} onClick={()=>void changeRole(person.id,'organizer')} className="rounded-lg bg-cyan-900 px-3 py-2 text-xs">تعيينه مشرفاً</button>}
                     {person.role === 'organizer' && <button disabled={busy} onClick={()=>void changeRole(person.id,'member')} className="rounded-lg bg-slate-700 px-3 py-2 text-xs">إعادته عضواً</button>}
+                    {person.membership_status === 'approved' && <button disabled={busy} onClick={()=>void changeMembershipStatus(person.id,'revoke')} className="rounded-lg bg-rose-950 border border-rose-700 px-3 py-2 text-xs text-rose-200">سحب العضوية</button>}
+                    {person.membership_status === 'revoked' && <button disabled={busy} onClick={()=>void changeMembershipStatus(person.id,'restore')} className="rounded-lg bg-emerald-900 border border-emerald-700 px-3 py-2 text-xs text-emerald-100">استعادة العضوية</button>}
                   </div>
                 </div>
               ))}
