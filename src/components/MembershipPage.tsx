@@ -323,6 +323,8 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({
                   </div>
                 </div>
 
+                {photoUploadDeferred && <p className="text-xs text-amber-200 max-w-md mx-auto leading-relaxed">بعد تأكيد البريد الإلكتروني وتسجيل الدخول، يمكنك رفع صورتك الشخصية من إعدادات الحساب.</p>}
+
                 <p className="text-xs sm:text-sm text-cyan-200/90 max-w-md mx-auto leading-relaxed">
                   {needsEmailConfirmation
                     ? 'تم تسجيل حسابك في نظام النادي. يرجى مراجعة بريدك الإلكتروني لتأكيد الحساب إن طُلب ذلك، وسيتم تفعيل بطاقتك فور اعتماد الإدارة للطلب.'
