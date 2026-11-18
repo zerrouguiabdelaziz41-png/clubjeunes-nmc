@@ -33,9 +33,12 @@ export const ProjectTasksPanel: React.FC = () => {
     setBusy(false);
   };
   const updateStatus = async (id:string,status:string) => {
-    if (!client) return;
+    if (!client || !['todo','in_progress','blocked','done','cancelled'].includes(status)) return;
+    setBusy(true);
+    setError('');
     const {error:e} = await client.from('project_tasks').update({status,updated_at:new Date().toISOString()}).eq('id',id);
     if (e) setError(e.message); else await load();
+    setBusy(false);
   };
   return <section className="rounded-3xl border border-cyan-800 bg-[#06182c] p-5 space-y-4">
     <div><h3 className="font-bold text-lg">متابعة المهام</h3><p className="text-xs text-slate-400">إنشاء المهام وتحديث تقدمها ضمن المشاريع.</p></div>
@@ -47,6 +50,6 @@ export const ProjectTasksPanel: React.FC = () => {
       <input type="datetime-local" value={dueAt} onChange={e=>setDueAt(e.target.value)} aria-label="آخر أجل للمهمة" className="rounded-xl bg-[#030e1c] border border-cyan-900 p-3"/>
       <div className="flex gap-2"><select value={priority} onChange={e=>setPriority(e.target.value)} className="min-w-0 flex-1 rounded-xl bg-[#030e1c] border border-cyan-900 p-3"><option value="low">منخفضة</option><option value="medium">متوسطة</option><option value="high">عالية</option><option value="urgent">عاجلة</option></select><button disabled={busy||!projectId} className="rounded-xl bg-cyan-800 px-4 font-bold">إضافة</button></div>
     </form>
-    <div className="space-y-2">{tasks.map(t=><article key={t.id} className="rounded-xl border border-cyan-950 p-3 flex flex-wrap items-center justify-between gap-3"><div><p className="font-semibold text-sm">{t.title}</p><p className="text-xs text-slate-400">{projects.find(p=>p.id===t.project_id)?.title || 'مشروع'} · الأولوية: {t.priority} · المسؤول: {people.find(p=>p.id===t.assigned_to)?.full_name||'غير محدد'} · الأجل: {t.due_at?new Date(t.due_at).toLocaleDateString('ar-DZ'):'غير محدد'}</p></div><select aria-label="حالة المهمة" value={t.status} onChange={e=>void updateStatus(t.id,e.target.value)} className="rounded-lg bg-[#030e1c] border border-cyan-900 px-3 py-2 text-xs"><option value="todo">لم تبدأ</option><option value="in_progress">قيد التنفيذ</option><option value="blocked">متوقفة</option><option value="done">مكتملة</option><option value="cancelled">ملغاة</option></select></article>)}{!tasks.length&&<p className="text-sm text-slate-500">لا توجد مهام حالياً.</p>}</div>
+    <div className="space-y-2">{tasks.map(t=><article key={t.id} className="rounded-xl border border-cyan-950 p-3 flex flex-wrap items-center justify-between gap-3"><div><p className="font-semibold text-sm">{t.title}</p><p className="text-xs text-slate-400">{projects.find(p=>p.id===t.project_id)?.title || 'مشروع'} · الأولوية: {t.priority} · المسؤول: {people.find(p=>p.id===t.assigned_to)?.full_name||'غير محدد'} · الأجل: {t.due_at?new Date(t.due_at).toLocaleDateString('ar-DZ'):'غير محدد'}</p></div><select aria-label="حالة المهمة" disabled={busy} value={t.status} onChange={e=>void updateStatus(t.id,e.target.value)} className="rounded-lg bg-[#030e1c] border border-cyan-900 px-3 py-2 text-xs"><option value="todo">لم تبدأ</option><option value="in_progress">قيد التنفيذ</option><option value="blocked">متوقفة</option><option value="done">مكتملة</option><option value="cancelled">ملغاة</option></select></article>)}{!tasks.length&&<p className="text-sm text-slate-500">لا توجد مهام حالياً.</p>}</div>
   </section>;
 };
