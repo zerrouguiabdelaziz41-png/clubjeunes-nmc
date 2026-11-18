@@ -31,7 +31,7 @@ import { Image as ImageIcon, Sparkles } from 'lucide-react';
 import { Language, TRANSLATIONS } from './data/translations.ts';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('home');
+  const [activeTab, setActiveTab] = useState(() => new URLSearchParams(window.location.search).get('view') === 'account' ? 'account' : 'home');
   const [currentLanguage, setCurrentLanguage] = useState<Language>('ar');
 
   // Member & Digital Card state
