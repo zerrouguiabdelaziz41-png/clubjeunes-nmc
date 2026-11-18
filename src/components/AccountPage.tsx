@@ -45,6 +45,9 @@ export const AccountPage: React.FC<Props> = ({ onBackToHome, onOpenCardModal, on
   const [newActivityDescription, setNewActivityDescription] = useState('');
   const [newActivityLocation, setNewActivityLocation] = useState('');
   const [newActivityStartsAt, setNewActivityStartsAt] = useState('');
+  const [editFullName,setEditFullName] = useState('');
+  const [editPhone,setEditPhone] = useState('');
+  const [editInterests,setEditInterests] = useState('');
 
   const loadAccount = useCallback(async () => {
     if (!client) { setError('إعداد الاتصال بقاعدة البيانات غير مكتمل. يرجى مراجعة إعدادات Supabase.'); return; }
@@ -58,6 +61,7 @@ export const AccountPage: React.FC<Props> = ({ onBackToHome, onOpenCardModal, on
       if (pError) throw pError;
       const safeRole: Role = ['member','organizer','admin'].includes(p.role) ? p.role : 'member';
       setProfile({ ...p, role: safeRole });
+      setEditFullName(p.full_name||''); setEditPhone(p.phone||''); setEditInterests(p.interests||'');
       if (safeRole === 'admin' && p.membership_status === 'approved') {
         const [r, a, pList, assigned] = await Promise.all([
           client.from('membership_requests').select('id,user_id,motivation,status,created_at,admin_notes').eq('status','pending').order('created_at',{ascending:false}),
@@ -110,6 +114,15 @@ export const AccountPage: React.FC<Props> = ({ onBackToHome, onOpenCardModal, on
       window.history.replaceState({},document.title,window.location.pathname+window.location.search);
       await loadAccount();
     }
+    setBusy(false);
+  };
+  const saveAccountProfile = async (e:React.FormEvent) => {
+    e.preventDefault();if(!client||!profile)return;
+    if(editFullName.trim().length<2){setError('الاسم الكامل يجب أن يتكون من حرفين على الأقل.');return;}
+    setBusy(true);setError('');setNotice('');
+    const {error:e2}=await client.from('profiles').update({full_name:editFullName.trim(),phone:editPhone.trim()||null,interests:editInterests.trim()||null}).eq('id',profile.id);
+    if(e2)setError(e2.code==='23505'?'رقم الهاتف مستخدم بالفعل في حساب آخر.':e2.message);
+    else{setNotice('تم تحديث بيانات حسابك.');await loadAccount();}
     setBusy(false);
   };
   const signIn = async (e: React.FormEvent) => {
@@ -264,6 +277,16 @@ export const AccountPage: React.FC<Props> = ({ onBackToHome, onOpenCardModal, on
           <div className="flex flex-wrap gap-2"><span className="rounded-full bg-amber-500/15 border border-amber-500/40 px-3 py-1 text-sm">{roleNames[profile.role]}</span><span className="rounded-full bg-cyan-500/10 border border-cyan-700 px-3 py-1 text-sm">العضوية: {statusNames[profile.membership_status]}</span><button onClick={()=>void loadAccount()} className="rounded-xl border border-cyan-800 p-2" title="تحديث"><RefreshCw size={17}/></button></div>
         </section>
         {profile.membership_status !== 'approved' && <div className="rounded-2xl border border-amber-700/60 bg-amber-950/30 p-4 text-amber-200 text-sm">حسابك موجود، لكن العضوية {statusNames[profile.membership_status]}. بعض خدمات النادي ستظل غير متاحة حتى اعتماد الطلب.</div>}
+        <section className="rounded-3xl border border-cyan-900 bg-[#06182c] p-5">
+          <h3 className="font-bold mb-3">إعدادات الحساب والبيانات الشخصية</h3>
+          <form onSubmit={saveAccountProfile} className="grid sm:grid-cols-2 gap-3">
+            <label className="block text-sm">الاسم الكامل<input required minLength={2} maxLength={160} value={editFullName} onChange={e=>setEditFullName(e.target.value)} className="mt-1 w-full rounded-xl bg-[#030e1c] border border-cyan-900 p-3 text-white"/></label>
+            <label className="block text-sm">رقم الهاتف<input type="tel" maxLength={30} value={editPhone} onChange={e=>setEditPhone(e.target.value)} className="mt-1 w-full rounded-xl bg-[#030e1c] border border-cyan-900 p-3 text-white"/></label>
+            <label className="block text-sm sm:col-span-2">الاهتمامات<textarea rows={2} maxLength={1000} value={editInterests} onChange={e=>setEditInterests(e.target.value)} className="mt-1 w-full rounded-xl bg-[#030e1c] border border-cyan-900 p-3 text-white"/></label>
+            <button disabled={busy} className="sm:col-span-2 rounded-xl bg-cyan-800 px-4 py-3 font-bold disabled:opacity-50">{busy?'جارٍ الحفظ…':'حفظ التعديلات'}</button>
+          </form>
+          <p className="text-[11px] text-slate-500 mt-2">تغيير البريد الإلكتروني وكلمة المرور يتم عبر إجراءات الأمان المخصصة، ولا يمكن تعديل الدور أو حالة العضوية من هذه الصفحة.</p>
+        </section>
         <section className="grid md:grid-cols-2 gap-4">
           <div className="rounded-2xl border border-cyan-900 bg-[#06182c] p-5"><h3 className="font-bold flex items-center gap-2 mb-3"><ShieldCheck className="text-emerald-400"/> صلاحيات الحساب</h3><p className="text-sm text-slate-300">{profile.membership_status!=='approved'?'عضويتك غير مفعّلة حالياً؛ تم إيقاف الوصول إلى خدمات النادي حتى استعادة العضوية أو اعتمادها.':profile.role==='admin'?'لديك صلاحيات إدارة الموقع وفق سياسات قاعدة البيانات.':profile.role==='organizer'?'تظهر هنا الأنشطة المسندة إليك فقط.':'يمكنك متابعة تسجيلاتك وطلباتك الشخصية.'}</p>
           {profile.membership_status==='approved' && <div className="flex gap-2 mt-4"><button onClick={()=>onOpenCardModal(memberCard)} className="text-xs rounded-lg bg-cyan-900 px-3 py-2">بطاقة العضوية</button><button onClick={()=>onOpenVerify(memberCard)} className="text-xs rounded-lg bg-cyan-900 px-3 py-2">التحقق من البطاقة</button></div>}</div>
