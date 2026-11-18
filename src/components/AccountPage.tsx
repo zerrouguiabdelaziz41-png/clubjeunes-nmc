@@ -24,6 +24,9 @@ export const AccountPage: React.FC<Props> = ({ onBackToHome, onOpenCardModal, on
   const client = getSupabaseClient();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [resetMode,setResetMode] = useState(() => typeof window !== 'undefined' && window.location.hash.includes('type=recovery'));
+  const [newPassword,setNewPassword] = useState('');
+  const [confirmPassword,setConfirmPassword] = useState('');
   const [profile, setProfile] = useState<Profile | null>(null);
   const [sessionEmail, setSessionEmail] = useState('');
   const [busy, setBusy] = useState(false);
@@ -84,6 +87,29 @@ export const AccountPage: React.FC<Props> = ({ onBackToHome, onOpenCardModal, on
     return undefined;
   }, [client, loadAccount]);
 
+  const sendPasswordReset = async () => {
+    if (!client) return;
+    const cleanEmail=email.trim().toLowerCase();
+    if (!cleanEmail) {setError('أدخل بريدك الإلكتروني أولاً لاستلام رابط استعادة كلمة المرور.');return;}
+    setBusy(true);setError('');setNotice('');
+    const {error:e}=await client.auth.resetPasswordForEmail(cleanEmail,{redirectTo:`${window.location.origin}/?view=account`});
+    if (e) setError(e.message); else setNotice('إذا كان البريد مسجلاً، فستصلك رسالة تتضمن رابطاً آمناً لإعادة تعيين كلمة المرور.');
+    setBusy(false);
+  };
+  const updatePassword = async (e:React.FormEvent) => {
+    e.preventDefault();if(!client)return;
+    if(newPassword.length<6){setError('كلمة المرور يجب أن تتكون من 6 خانات على الأقل.');return;}
+    if(newPassword!==confirmPassword){setError('كلمتا المرور غير متطابقتين.');return;}
+    setBusy(true);setError('');setNotice('');
+    const {error:e2}=await client.auth.updateUser({password:newPassword});
+    if(e2)setError(e2.message);else{
+      setNotice('تم تحديث كلمة المرور بنجاح. يمكنك الآن متابعة استخدام حسابك.');
+      setResetMode(false);setNewPassword('');setConfirmPassword('');
+      window.history.replaceState({},document.title,window.location.pathname+window.location.search);
+      await loadAccount();
+    }
+    setBusy(false);
+  };
   const signIn = async (e: React.FormEvent) => {
     e.preventDefault(); if (!client) return;
     setBusy(true); setError(''); setNotice('');
@@ -226,10 +252,9 @@ export const AccountPage: React.FC<Props> = ({ onBackToHome, onOpenCardModal, on
       {error && <div role="alert" className="rounded-xl border border-rose-700 bg-rose-950/40 p-3 text-rose-200 text-sm">{error}</div>}
       {notice && <div className="rounded-xl border border-emerald-700 bg-emerald-950/40 p-3 text-emerald-200 text-sm">{notice}</div>}
       {!profile ? <section className="max-w-lg mx-auto mt-8 rounded-3xl border border-cyan-900 bg-[#06182c] p-6 shadow-xl">
-        <div className="flex items-center gap-3 mb-5"><LockKeyhole className="text-amber-400"/><div><h2 className="text-xl font-bold">تسجيل الدخول</h2><p className="text-xs text-slate-400">استخدم حساب النادي المسجل في قاعدة البيانات</p></div></div>
-        <form onSubmit={signIn} className="space-y-4"><label className="block text-sm">البريد الإلكتروني<input required type="email" autoComplete="username" value={email} onChange={e=>setEmail(e.target.value)} className="mt-1 w-full rounded-xl bg-[#030e1c] border border-cyan-900 p-3 text-white"/></label>
-        <label className="block text-sm">كلمة المرور<input required type="password" autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)} className="mt-1 w-full rounded-xl bg-[#030e1c] border border-cyan-900 p-3 text-white"/></label>
-        <button disabled={busy} className="w-full rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 p-3 font-bold disabled:opacity-50">{busy?'جارٍ التحقق…':'دخول آمن'}</button></form>
+        <div className="flex items-center gap-3 mb-5"><LockKeyhole className="text-amber-400"/><div><h2 className="text-xl font-bold">{resetMode?'إعادة تعيين كلمة المرور':'تسجيل الدخول'}</h2><p className="text-xs text-slate-400">{resetMode?'اختر كلمة مرور جديدة لحسابك':'استخدم حساب النادي المسجل في قاعدة البيانات'}</p></div></div>
+        {resetMode?<form onSubmit={updatePassword} className="space-y-4"><label className="block text-sm">كلمة المرور الجديدة<input required minLength={6} type="password" autoComplete="new-password" value={newPassword} onChange={e=>setNewPassword(e.target.value)} className="mt-1 w-full rounded-xl bg-[#030e1c] border border-cyan-900 p-3 text-white"/></label><label className="block text-sm">تأكيد كلمة المرور<input required minLength={6} type="password" autoComplete="new-password" value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} className="mt-1 w-full rounded-xl bg-[#030e1c] border border-cyan-900 p-3 text-white"/></label><button disabled={busy} className="w-full rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 p-3 font-bold disabled:opacity-50">{busy?'جارٍ التحديث…':'حفظ كلمة المرور الجديدة'}</button></form>
+        :<><form onSubmit={signIn} className="space-y-4"><label className="block text-sm">البريد الإلكتروني<input required type="email" autoComplete="username" value={email} onChange={e=>setEmail(e.target.value)} className="mt-1 w-full rounded-xl bg-[#030e1c] border border-cyan-900 p-3 text-white"/></label><label className="block text-sm">كلمة المرور<input required type="password" autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)} className="mt-1 w-full rounded-xl bg-[#030e1c] border border-cyan-900 p-3 text-white"/></label><button disabled={busy} className="w-full rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 p-3 font-bold disabled:opacity-50">{busy?'جارٍ التحقق…':'دخول آمن'}</button></form><button type="button" disabled={busy} onClick={()=>void sendPasswordReset()} className="mt-3 text-sm text-cyan-300 hover:text-white">نسيت كلمة المرور؟ أرسل رابط الاستعادة</button></>}
         <p className="text-xs text-slate-500 mt-4">لا يمكن اختيار الدور يدوياً؛ يتم تحديد الصلاحية من ملفك المعتمد في قاعدة البيانات.</p>
       </section> : <>
         <section className="rounded-3xl border border-cyan-900 bg-[#06182c] p-5 flex flex-wrap justify-between items-center gap-4">
