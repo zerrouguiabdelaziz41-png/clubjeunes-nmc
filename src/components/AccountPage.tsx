@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Home, User, LogOut, ShieldCheck, CalendarDays, ClipboardList, RefreshCw, Check, X, LockKeyhole } from 'lucide-react';
+import { Home, User, LogOut, ShieldCheck, CalendarDays, ClipboardList, RefreshCw, Check, X, LockKeyhole, Camera } from 'lucide-react';
 import { getSupabaseClient } from '../lib/supabase.ts';
 import { Language } from '../data/translations.ts';
 import { MemberData } from './MembershipCardModal.tsx';
@@ -50,6 +50,8 @@ export const AccountPage: React.FC<Props> = ({ onBackToHome, onOpenCardModal, on
   const [editFullName,setEditFullName] = useState('');
   const [editPhone,setEditPhone] = useState('');
   const [editInterests,setEditInterests] = useState('');
+  const [avatarFile,setAvatarFile] = useState<File|null>(null);
+  const [avatarPreview,setAvatarPreview] = useState('');
 
   const loadAccount = useCallback(async () => {
     if (!client) { setError('إعداد الاتصال بقاعدة البيانات غير مكتمل. يرجى مراجعة إعدادات Supabase.'); return; }
@@ -127,6 +129,52 @@ export const AccountPage: React.FC<Props> = ({ onBackToHome, onOpenCardModal, on
     if(e2)setError(e2.code==='23505'?'رقم الهاتف مستخدم بالفعل في حساب آخر.':e2.message);
     else{setNotice('تم تحديث بيانات حسابك.');await loadAccount();}
     setBusy(false);
+  };
+  const handleAvatarSelection = (e:React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    if (!file) return;
+    if (!['image/jpeg','image/png','image/webp'].includes(file.type)) {
+      setError('نوع الصورة غير مدعوم. استخدم JPG أو PNG أو WebP.');
+      e.target.value = '';
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setError('يجب ألا يتجاوز حجم الصورة 2 ميغابايت.');
+      e.target.value = '';
+      return;
+    }
+    setError('');
+    setAvatarFile(file);
+    setAvatarPreview(URL.createObjectURL(file));
+  };
+  useEffect(() => () => {
+    if (avatarPreview.startsWith('blob:')) URL.revokeObjectURL(avatarPreview);
+  }, [avatarPreview]);
+  const saveAvatar = async () => {
+    if (!client || !profile || !avatarFile) return;
+    setBusy(true);setError('');setNotice('');
+    const ext = avatarFile.type === 'image/png' ? 'png' : avatarFile.type === 'image/webp' ? 'webp' : 'jpg';
+    const path = `${profile.id}/avatar-${Date.now()}.${ext}`;
+    try {
+      const { data: uploaded, error: uploadError } = await client.storage.from('avatars').upload(path, avatarFile, {
+        cacheControl: '3600', upsert: false, contentType: avatarFile.type,
+      });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = client.storage.from('avatars').getPublicUrl(uploaded.path);
+      const { error: profileError } = await client.from('profiles').update({ avatar_url: urlData.publicUrl }).eq('id', profile.id);
+      if (profileError) {
+        await client.storage.from('avatars').remove([uploaded.path]);
+        throw profileError;
+      }
+      setAvatarFile(null);
+      setAvatarPreview('');
+      setNotice('تم رفع الصورة الشخصية وحفظها في ملفك بنجاح.');
+      await loadAccount();
+    } catch (e:any) {
+      setError(e?.message || 'تعذر حفظ الصورة الشخصية. حاول مرة أخرى.');
+    } finally {
+      setBusy(false);
+    }
   };
   const signIn = async (e: React.FormEvent) => {
     e.preventDefault(); if (!client) return;
@@ -293,6 +341,18 @@ export const AccountPage: React.FC<Props> = ({ onBackToHome, onOpenCardModal, on
         {profile.membership_status !== 'approved' && <div className="rounded-2xl border border-amber-700/60 bg-amber-950/30 p-4 text-amber-200 text-sm">حسابك موجود، لكن العضوية {statusNames[profile.membership_status]}. بعض خدمات النادي ستظل غير متاحة حتى اعتماد الطلب.</div>}
         <section className="rounded-3xl border border-cyan-900 bg-[#06182c] p-5">
           <h3 className="font-bold mb-3">إعدادات الحساب والبيانات الشخصية</h3>
+          <div className="flex flex-wrap items-center gap-4 mb-5">
+            <div className="w-16 h-16 rounded-full overflow-hidden border border-cyan-700 bg-cyan-950 flex items-center justify-center">
+              {(avatarPreview || profile.avatar_url) ? <img src={avatarPreview || profile.avatar_url || ''} alt="الصورة الشخصية" className="w-full h-full object-cover"/> : <User className="text-amber-400" size={28}/>}
+            </div>
+            <div className="flex-1 min-w-[220px]">
+              <label className="block text-sm font-semibold">الصورة الشخصية
+                <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleAvatarSelection} disabled={busy} className="mt-2 block w-full text-xs text-slate-300 file:mr-3 file:rounded-lg file:border-0 file:bg-cyan-900 file:px-3 file:py-2 file:text-white"/>
+              </label>
+              <p className="text-[11px] text-slate-500 mt-1">JPG أو PNG أو WebP — بحد أقصى 2 ميغابايت.</p>
+            </div>
+            {avatarFile && <button type="button" onClick={()=>void saveAvatar()} disabled={busy} className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-bold disabled:opacity-50">{busy?'جارٍ الرفع…':'حفظ الصورة'}</button>}
+          </div>
           <form onSubmit={saveAccountProfile} className="grid sm:grid-cols-2 gap-3">
             <label className="block text-sm">الاسم الكامل<input required minLength={2} maxLength={160} value={editFullName} onChange={e=>setEditFullName(e.target.value)} className="mt-1 w-full rounded-xl bg-[#030e1c] border border-cyan-900 p-3 text-white"/></label>
             <label className="block text-sm">رقم الهاتف<input type="tel" maxLength={30} value={editPhone} onChange={e=>setEditPhone(e.target.value)} className="mt-1 w-full rounded-xl bg-[#030e1c] border border-cyan-900 p-3 text-white"/></label>
