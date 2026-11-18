@@ -221,7 +221,7 @@ export const AdminModulesPanel: React.FC = () => {
   const updateRowStatus = async (row:any,status:string) => {
     if (!client) return;
     const table = tab==='calendar'?'club_calendar_events':tab==='pages'?'site_pages':tab;
-    const patch:any = {status};
+    const patch:any = tab==='calendar'?{visibility:status}:{status};
     if (tab==='pages') patch.updated_by=currentUserId;
     if (tab==='pages'||tab==='projects'||tab==='courses'||tab==='partnerships'||tab==='calendar') patch.updated_at=new Date().toISOString();
     if (tab==='pages') patch.published_at=status==='published'?new Date().toISOString():null;
