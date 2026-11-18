@@ -179,11 +179,14 @@ export const AccountPage: React.FC<Props> = ({ onBackToHome, onOpenCardModal, on
     });
     if (rpcError) setError(rpcError.message);
     else {
+      let cleanupErrorMessage = '';
       if (role !== 'organizer') {
         const { error: cleanupError } = await client.from('organizers').delete().eq('user_id', userId);
-        if (cleanupError) setError('تم تغيير الدور، لكن تعذر حذف التكليفات القديمة: ' + cleanupError.message);
+        if (cleanupError) cleanupErrorMessage = 'تم تغيير الدور، لكن تعذر حذف التكليفات القديمة: ' + cleanupError.message;
       }
-      setNotice('تم تحديث صلاحية الحساب.'); await loadAccount();
+      if (cleanupErrorMessage) setError(cleanupErrorMessage);
+      else setNotice('تم تحديث صلاحية الحساب.');
+      await loadAccount();
     }
     setBusy(false);
   };
