@@ -69,11 +69,11 @@ export const AccountPage: React.FC<Props> = ({ onBackToHome, onOpenCardModal, on
           client.from('activities').select('id,title,description,location,starts_at,published,review_status,created_by').order('created_at',{ascending:false}),
           client.from('profiles').select('id,full_name,phone,role,membership_status').order('full_name'),
           client.from('organizers').select('id,user_id,activity_id,profiles(full_name),activities(title)').order('assigned_at',{ascending:false}),
-          client.from('registrations').select('id,status,created_at,profiles(full_name),activities(title)').order('created_at',{ascending:false})
+          client.from('registrations').select('id,user_id,activity_id,status,created_at').order('created_at',{ascending:false})
         ]);
         if (r.error) throw r.error; if (a.error) throw a.error;
         if (pList.error) throw pList.error; if (assigned.error) throw assigned.error; if (activityRegs.error) throw activityRegs.error;
-        setRequests(r.data || []); setActivities(a.data || []); setPeople(pList.data || []); setAssignments(assigned.data || []); setAdminRegistrations(activityRegs.data||[]);
+        setRequests(r.data || []); setActivities(a.data || []); setPeople(pList.data || []); setAssignments(assigned.data || []); setAdminRegistrations((activityRegs.data||[]).map((registration:any)=>({...registration,profiles:pList.data?.find((person:any)=>person.id===registration.user_id),activities:a.data?.find((activity:any)=>activity.id===registration.activity_id)})));
       } else if (safeRole === 'organizer' && p.membership_status === 'approved') {
         const { data: assigned, error: assignedError } = await client.from('organizers').select('activity_id, activities(id,title,description,location,starts_at,published,review_status)').eq('user_id', user.id);
         if (assignedError) throw assignedError;
