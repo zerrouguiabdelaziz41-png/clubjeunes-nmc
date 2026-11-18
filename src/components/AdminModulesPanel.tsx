@@ -27,9 +27,6 @@ const fields: Record<ModuleKey,string[]> = {
   pages:['slug','title'],
   messages:['recipient_id','subject','body']
 };
-const defaults: Record<string,string> = {
-  status:'planning',event_type:'general',visibility:'members'
-};
 function displayRow(row:any) {
   return row.title || row.partner_name || row.slug || row.subject || row.name || row.id;
 }
@@ -46,7 +43,6 @@ export const AdminModulesPanel: React.FC = () => {
   const [meetingPeople,setMeetingPeople] = useState<any[]>([]);
   const [meetingCommittees,setMeetingCommittees] = useState<any[]>([]);
   const [meetingAttendees,setMeetingAttendees] = useState<any[]>([]);
-  const [meetingMinutes,setMeetingMinutes] = useState<any[]>([]);
   const [meetingAttendeeSelection,setMeetingAttendeeSelection] = useState<Record<string,string>>({});
   const [meetingMinuteDrafts,setMeetingMinuteDrafts] = useState<Record<string,string>>({});
   const [pageVersions,setPageVersions] = useState<Record<string,any[]>>({});
@@ -91,7 +87,6 @@ export const AdminModulesPanel: React.FC = () => {
       if (committeeResult.error) setError(committeeResult.error.message); else setMeetingCommittees(committeeResult.data||[]);
       if (attendeeResult.error) setError(attendeeResult.error.message); else setMeetingAttendees(attendeeResult.data||[]);
       if (minutesResult.error) setError(minutesResult.error.message); else {
-        setMeetingMinutes(minutesResult.data||[]);
         setMeetingMinuteDrafts(old=>({...Object.fromEntries((minutesResult.data||[]).map((m:any)=>[m.meeting_id,m.content||''])),...old}));
       }
     }
