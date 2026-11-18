@@ -50,7 +50,7 @@ export const AccountPage: React.FC<Props> = ({ onBackToHome, onOpenCardModal, on
       if (pError) throw pError;
       const safeRole: Role = ['member','organizer','admin'].includes(p.role) ? p.role : 'member';
       setProfile({ ...p, role: safeRole });
-      if (safeRole === 'admin') {
+      if (safeRole === 'admin' && p.membership_status === 'approved') {
         const [r, a, pList, assigned] = await Promise.all([
           client.from('membership_requests').select('id,user_id,motivation,status,created_at,admin_notes').eq('status','pending').order('created_at',{ascending:false}),
           client.from('activities').select('id,title,description,location,starts_at,published,review_status,created_by').order('created_at',{ascending:false}),
@@ -60,7 +60,7 @@ export const AccountPage: React.FC<Props> = ({ onBackToHome, onOpenCardModal, on
         if (r.error) throw r.error; if (a.error) throw a.error;
         if (pList.error) throw pList.error; if (assigned.error) throw assigned.error;
         setRequests(r.data || []); setActivities(a.data || []); setPeople(pList.data || []); setAssignments(assigned.data || []);
-      } else if (safeRole === 'organizer') {
+      } else if (safeRole === 'organizer' && p.membership_status === 'approved') {
         const { data: assigned, error: assignedError } = await client.from('organizers').select('activity_id, activities(id,title,description,location,starts_at,published,review_status)').eq('user_id', user.id);
         if (assignedError) throw assignedError;
         setActivities((assigned || []).map((x:any) => x.activities).filter(Boolean));
@@ -236,7 +236,7 @@ export const AccountPage: React.FC<Props> = ({ onBackToHome, onOpenCardModal, on
           <div className="rounded-2xl border border-cyan-900 bg-[#06182c] p-5"><h3 className="font-bold flex items-center gap-2 mb-3"><CalendarDays className="text-amber-400"/> {profile.role==='member'?'تسجيلاتي في الأنشطة':'الأنشطة المسندة'}</h3>
             {profile.role==='member' ? registrations.length ? registrations.map((r:any)=><p key={r.id} className="text-sm border-t border-cyan-950 py-2">{r.activities?.title || 'نشاط'} — {r.status}</p>) : <p className="text-sm text-slate-400">لا توجد تسجيلات بعد.</p> : activities.length ? activities.map((a:any)=><p key={a.id} className="text-sm border-t border-cyan-950 py-2">{a.title} — {a.review_status || (a.published?'منشور':'قيد المراجعة')}</p>) : <p className="text-sm text-slate-400">لا توجد أنشطة مسندة أو مسجلة حالياً.</p>}</div>
         </section>
-        {profile.role==='admin' && <>
+        {profile.role==='admin' && profile.membership_status==='approved' && <>
           <section className="rounded-3xl border border-emerald-800/70 bg-[#06182c] p-5">
             <h3 className="font-bold mb-2">إضافة نشاط جديد</h3>
             <p className="text-xs text-slate-400 mb-4">النشاط الذي يضيفه المدير يُحفظ معتمدًا في قاعدة البيانات. ربطه بتصنيفات الصفحة العامة خطوة منفصلة.</p>
