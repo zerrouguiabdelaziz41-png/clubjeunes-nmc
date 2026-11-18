@@ -24,6 +24,7 @@ import { AboutPage } from './components/AboutPage.tsx';
 import { MembershipPage } from './components/MembershipPage.tsx';
 import { AccountPage } from './components/AccountPage.tsx';
 import { VerificationPage } from './components/VerificationPage.tsx';
+import { PublicClubContent } from './components/PublicClubContent.tsx';
 import { MembershipCardModal, MemberData, DEFAULT_MEMBER } from './components/MembershipCardModal.tsx';
 import { SupabaseModal } from './components/SupabaseModal.tsx';
 import { Image as ImageIcon, Sparkles } from 'lucide-react';
@@ -295,6 +296,9 @@ export default function App() {
                 language={currentLanguage}
               />
             </div>
+
+            {/* Published CMS content and upcoming public calendar events */}
+            <PublicClubContent />
 
             {/* 3. Bottom 3-Card Section */}
             <section
