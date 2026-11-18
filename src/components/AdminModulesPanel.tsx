@@ -139,19 +139,25 @@ export const AdminModulesPanel: React.FC = () => {
     setBusy(true); setError(''); setNotice('');
     const {data:inserted,error:e} = await client.from('committee_members').insert({committee_id:committeeId,user_id:userId,committee_role:'member'}).select('id').single();
     if (e) setError(e.message); else {
+      let operationError = '';
       if (role === 'chair') {
         const {error:demoteError}=await client.from('committee_members').update({committee_role:'member'}).eq('committee_id',committeeId).eq('committee_role','chair').eq('is_active',true);
-        if (demoteError) setError(demoteError.message);
+        if (demoteError) operationError = 'تعذّر إلغاء تعيين الرئيس السابق: '+demoteError.message;
         else {
           const {error:promoteError}=await client.from('committee_members').update({committee_role:'chair'}).eq('id',inserted.id);
-          const chair=people.find((p:any)=>p.id===userId);
-          const {error:chairError}=await client.from('committees').update({chair_user_id:userId,chair_name:chair?.full_name||null,updated_at:new Date().toISOString()}).eq('id',committeeId);
-          if (promoteError) setError(promoteError.message);
-          if (chairError) setError('تعذر تحديث بيانات رئيس اللجنة: '+chairError.message);
+          if (promoteError) operationError = 'أُضيف العضو، لكن تعذّر تعيينه رئيساً: '+promoteError.message;
+          else {
+            const chair=people.find((p:any)=>p.id===userId);
+            const {error:chairError}=await client.from('committees').update({chair_user_id:userId,chair_name:chair?.full_name||null,updated_at:new Date().toISOString()}).eq('id',committeeId);
+            if (chairError) operationError = 'تم تحديث دور العضو، لكن تعذّر تحديث بيانات رئيس اللجنة: '+chairError.message;
+          }
         }
       }
-      setNotice(role === 'chair' ? 'تم تعيين رئيس اللجنة.' : 'تمت إضافة العضو إلى اللجنة.');
-      setCommitteeUser(old=>({...old,[committeeId]:''}));
+      if (operationError) setError(operationError);
+      else {
+        setNotice(role === 'chair' ? 'تم تعيين رئيس اللجنة.' : 'تمت إضافة العضو إلى اللجنة.');
+        setCommitteeUser(old=>({...old,[committeeId]:''}));
+      }
       await load();
     }
     setBusy(false);
