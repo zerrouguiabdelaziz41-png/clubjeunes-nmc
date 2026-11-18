@@ -169,9 +169,19 @@ export const AdminModulesPanel: React.FC = () => {
   };
   const toggleCommitteeMember = async (id:string,isActive:boolean) => {
     if (!client) return;
+    const committee=committees.find((x:any)=>x.members.some((m:any)=>m.id===id));
+    const member=committee?.members.find((m:any)=>m.id===id);
     setBusy(true); setError('');
     const {error:e} = await client.from('committee_members').update({is_active:!isActive}).eq('id',id);
-    if (e) setError(e.message); else {setNotice('تم تحديث حالة عضوية اللجنة.'); await load();}
+    if (e) setError(e.message);
+    else {
+      if (member?.committee_role==='chair') {
+        const chair=people.find((p:any)=>p.id===member.user_id);
+        const {error:chairError}=await client.from('committees').update({chair_user_id:isActive?null:member.user_id,chair_name:isActive?null:(chair?.full_name||null),updated_at:new Date().toISOString()}).eq('id',committee.id);
+        if (chairError) setError(chairError.message);
+      }
+      setNotice('تم تحديث حالة عضوية اللجنة.'); await load();
+    }
     setBusy(false);
   };
   const savePageContent = async (page:any) => {
