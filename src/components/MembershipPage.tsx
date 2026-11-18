@@ -76,6 +76,7 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({
   const [isMissingKey, setIsMissingKey] = useState(false);
   const [registeredMemberNumber, setRegisteredMemberNumber] = useState<string>('');
   const [needsEmailConfirmation, setNeedsEmailConfirmation] = useState(false);
+  const [photoUploadDeferred, setPhotoUploadDeferred] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -83,7 +84,7 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({
     const file = e.target.files?.[0];
     if (file) {
       // Validate file type
-      if (!file.type.startsWith('image/')) {
+      if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
         setErrorMessage('نوع الملف غير مدعوم. يرجى اختيار ملف صورة صالح (JPG, PNG, WebP).');
         if (fileInputRef.current) fileInputRef.current.value = '';
         return;
@@ -163,20 +164,36 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({
         return;
       }
 
-      // 2. Separate upload to Supabase Storage if the user picked a custom photo
-      let finalAvatarUrl = photoPreview;
-      if (selectedPhotoFile && result.userId) {
+      // 2. Upload the selected avatar only when signup returned an authenticated session.
+      // Email-confirmation signups are prompted to upload from Account Settings after login.
+      let finalAvatarUrl = '';
+      let deferPhotoUpload = Boolean(selectedPhotoFile && result.userId && !result.session);
+      if (selectedPhotoFile && result.userId && result.session) {
         try {
           const uploadRes = await SupabaseClubService.uploadUserAvatar(result.userId, selectedPhotoFile);
           if (uploadRes.success && uploadRes.publicUrl) {
-            finalAvatarUrl = uploadRes.publicUrl;
-          } else if (uploadRes.error) {
-            console.warn('[MembershipPage] Notice uploading avatar to storage:', uploadRes.error);
+            const { getSupabaseClient } = await import('../lib/supabase.ts');
+            const client = getSupabaseClient();
+            const { error: avatarSaveError } = client
+              ? await client.from('profiles').update({ avatar_url: uploadRes.publicUrl }).eq('id', result.userId)
+              : { error: new Error('تعذر تهيئة اتصال قاعدة البيانات') };
+            if (avatarSaveError) {
+              if (uploadRes.path) await client?.storage.from('avatars').remove([uploadRes.path]);
+              deferPhotoUpload = true;
+              console.warn('[MembershipPage] Avatar profile save failed:', avatarSaveError.message);
+            } else {
+              finalAvatarUrl = uploadRes.publicUrl;
+            }
+          } else {
+            deferPhotoUpload = true;
+            console.warn('[MembershipPage] Avatar upload notice:', uploadRes.error);
           }
         } catch (uploadErr) {
+          deferPhotoUpload = true;
           console.warn('[MembershipPage] Avatar upload caught error:', uploadErr);
         }
       }
+      setPhotoUploadDeferred(deferPhotoUpload);
 
       // 3. Success with Supabase Auth!
       let memberNum = 'يظهر بعد تأكيد البريد';
@@ -500,7 +517,7 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({
                   <input
                     type="file"
                     ref={fileInputRef}
-                    accept="image/*"
+                    accept="image/jpeg,image/png,image/webp"
                     onChange={handlePhotoUpload}
                     className="hidden"
                   />
