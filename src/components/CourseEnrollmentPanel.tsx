@@ -28,9 +28,14 @@ export const CourseEnrollmentPanel: React.FC = () => {
     setBusy(true);setError('');setNotice('');
     const {data:userData,error:userError} = await client.auth.getUser();
     if (userError || !userData.user) {setError('تعذر التحقق من حسابك.');setBusy(false);return;}
-    const {error:e} = await client.from('course_enrollments').insert({course_id:courseId,user_id:userData.user.id,status:'enrolled'});
-    if (e) setError(e.code==='23505'?'لديك تسجيل سابق في هذه الدورة.':e.message);
-    else {setNotice('تم تسجيلك في الدورة بنجاح.');await load();}
+    const {data: enrollmentResult,error:e} = await client.rpc('enroll_in_course',{p_course_id:courseId});
+    if (e) {
+      setError(e.code==='23505'?'لديك تسجيل سابق في هذه الدورة.':e.code==='42501'?'يجب أن تكون عضويتك معتمدة للتسجيل في الدورات.':e.message);
+    } else {
+      const result=Array.isArray(enrollmentResult)?enrollmentResult[0]:enrollmentResult;
+      setNotice(result?.enrollment_status==='waitlisted'?'اكتمل عدد المقاعد؛ تمت إضافتك إلى قائمة الانتظار.':'تم تسجيلك في الدورة بنجاح.');
+      await load();
+    }
     setBusy(false);
   };
   const withdraw = async (id:string) => {
@@ -54,7 +59,8 @@ export const CourseEnrollmentPanel: React.FC = () => {
           {course.description&&<p className="text-sm text-slate-300 whitespace-pre-wrap">{course.description}</p>}
           {course.starts_at&&<p className="text-xs text-cyan-200 flex items-center gap-2"><CalendarDays size={14}/>{new Date(course.starts_at).toLocaleString('ar-DZ')}</p>}
           {course.location&&<p className="text-xs text-slate-400 flex items-center gap-2"><MapPin size={14}/>{course.location}</p>}
-          {enrollment ? <div className="flex items-center justify-between gap-2"><span className="text-xs text-emerald-300">{statusLabel[enrollment.status]||enrollment.status}</span>{enrollment.status!=='withdrawn'&&<button disabled={busy} onClick={()=>void withdraw(enrollment.id)} className="text-xs text-rose-300">إلغاء التسجيل</button>}</div>
+          {course.capacity!==null&&course.capacity!==undefined&&<p className="text-xs text-slate-400">السعة القصوى: {course.capacity} مشاركاً</p>}
+          {enrollment ? <div className="flex items-center justify-between gap-2"><span className={"text-xs "+(enrollment.status==='waitlisted'?'text-amber-300':'text-emerald-300')}>{statusLabel[enrollment.status]||enrollment.status}</span>{enrollment.status!=='withdrawn'&&<button disabled={busy} onClick={()=>void withdraw(enrollment.id)} className="text-xs text-rose-300">إلغاء التسجيل</button>}</div>
           : <button disabled={busy} onClick={()=>void enroll(course.id)} className="rounded-lg bg-cyan-800 px-4 py-2 text-sm font-bold disabled:opacity-50">التسجيل في الدورة</button>}
         </article>;
       })}
