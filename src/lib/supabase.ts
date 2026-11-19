@@ -101,7 +101,11 @@ export function getSupabaseAnonKey(): string {
         window.localStorage.getItem('supabase_publishable_key') ||
         ''
       ).trim();
-      if (storedKey && !isPlaceholderKey(storedKey) && !isSecretKey(storedKey)) {
+      if (storedKey && isSecretKey(storedKey)) {
+        // Remove secrets left by older versions instead of retaining them in browser storage.
+        window.localStorage.removeItem('supabase_anon_key');
+        window.localStorage.removeItem('supabase_publishable_key');
+      } else if (storedKey && !isPlaceholderKey(storedKey)) {
         return storedKey;
       }
     } catch {
@@ -118,12 +122,14 @@ export function getSupabaseAnonKey(): string {
 export function setLocalSupabaseAnonKey(key: string): void {
   if (typeof window !== 'undefined') {
     try {
-      if (!key) {
+      const normalized = key.trim();
+      if (!normalized || isPlaceholderKey(normalized) || isSecretKey(normalized)) {
+        // Never persist privileged keys or incomplete placeholder values in the browser.
         window.localStorage.removeItem('supabase_anon_key');
         window.localStorage.removeItem('supabase_publishable_key');
       } else {
-        window.localStorage.setItem('supabase_anon_key', key.trim());
-        window.localStorage.setItem('supabase_publishable_key', key.trim());
+        window.localStorage.setItem('supabase_anon_key', normalized);
+        window.localStorage.setItem('supabase_publishable_key', normalized);
       }
     } catch {
       // Ignore
