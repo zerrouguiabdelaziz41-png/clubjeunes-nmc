@@ -1,7 +1,8 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Default Supabase Project URL provided by the user
-export const DEFAULT_SUPABASE_URL = 'https://geniskumuwdedhckkexn.supabase.co';
+// Deliberately empty: every deployment must explicitly select its Supabase project.
+// This prevents a missing environment variable from silently targeting production.
+export const DEFAULT_SUPABASE_URL = '';
 
 /**
  * Get current configured Supabase URL
@@ -10,10 +11,7 @@ export function getSupabaseUrl(): string {
   const metaEnvUrl = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_SUPABASE_URL : '';
   const processEnvUrl = typeof process !== 'undefined' && process.env ? process.env.VITE_SUPABASE_URL : '';
   const envUrl = ((metaEnvUrl || processEnvUrl || '') as string).trim();
-  if (envUrl && envUrl.length > 5) {
-    return envUrl;
-  }
-  return DEFAULT_SUPABASE_URL;
+  return envUrl;
 }
 
 /**
@@ -43,6 +41,7 @@ export function isSecretKey(key: string): boolean {
   return (
     lower.includes('service_role') ||
     lower.includes('service-role') ||
+    lower.startsWith('sbp_') || // Supabase Personal Access Tokens are not browser API keys.
     lower.startsWith('sb_sec_') ||
     lower.startsWith('sb_secret_') ||
     lower.startsWith('sbs_')
@@ -69,7 +68,7 @@ export function getSupabaseAnonKey(): string {
     ''
   ).trim();
 
-  if (envKey && !isPlaceholderKey(envKey)) {
+  if (envKey && !isPlaceholderKey(envKey) && !isSecretKey(envKey)) {
     return envKey;
   }
 
@@ -81,7 +80,7 @@ export function getSupabaseAnonKey(): string {
         window.localStorage.getItem('supabase_publishable_key') ||
         ''
       ).trim();
-      if (storedKey && !isPlaceholderKey(storedKey)) {
+      if (storedKey && !isPlaceholderKey(storedKey) && !isSecretKey(storedKey)) {
         return storedKey;
       }
     } catch {
@@ -121,7 +120,7 @@ export function getSupabaseClient(): SupabaseClient | null {
   const url = getSupabaseUrl();
   const anonKey = getSupabaseAnonKey();
 
-  if (!anonKey || isPlaceholderKey(anonKey)) {
+  if (!url || !anonKey || isPlaceholderKey(anonKey) || isSecretKey(anonKey)) {
     return null;
   }
 
@@ -156,7 +155,7 @@ export const supabase = getSupabaseClient();
  */
 export interface ConnectionTestResult {
   success: boolean;
-  code: 'OK' | 'MISSING_KEY' | 'INVALID_KEY' | 'NETWORK_ERROR' | 'SECURITY_WARNING';
+  code: 'OK' | 'MISSING_URL' | 'MISSING_KEY' | 'INVALID_KEY' | 'NETWORK_ERROR' | 'SECURITY_WARNING';
   message: string;
   url: string;
   latencyMs?: number;
@@ -188,6 +187,19 @@ export async function testSupabaseConnection(overrideKey?: string): Promise<Conn
     typeof window !== 'undefined' && typeof window.localStorage !== 'undefined'
       ? Boolean(window.localStorage.getItem('supabase_anon_key'))
       : false;
+
+  // Require an explicit project URL; never silently fall back to production.
+  if (!url) {
+    return {
+      success: false,
+      code: 'MISSING_URL',
+      url,
+      hasEnvKey,
+      hasLocalKey,
+      message: 'لم يتم تحديد مشروع Supabase.',
+      details: 'يرجى ضبط VITE_SUPABASE_URL صراحةً في ملف .env.local أو إعدادات النشر قبل الاتصال.',
+    };
+  }
 
   // 1. Check if key is provided and not a placeholder
   if (!testKey || isPlaceholderKey(testKey)) {
