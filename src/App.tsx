@@ -657,6 +657,7 @@ export default function App() {
         isOpen={isSupabaseOpen}
         onClose={() => setIsSupabaseOpen(false)}
       />
+      </Suspense>
     </div>
   );
 }
