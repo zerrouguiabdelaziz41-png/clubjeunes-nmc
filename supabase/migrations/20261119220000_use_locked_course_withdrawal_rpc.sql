@@ -5,6 +5,7 @@ DROP TRIGGER IF EXISTS promote_course_waitlist_after_withdrawal ON public.course
 DROP FUNCTION IF EXISTS private.promote_waitlisted_course_enrollment();
 
 DROP POLICY IF EXISTS course_enrollments_self_withdraw ON public.course_enrollments;
+DROP POLICY IF EXISTS course_enrollments_update_self_or_admin ON public.course_enrollments;
 DROP POLICY IF EXISTS course_enrollments_admin_manage ON public.course_enrollments;
 
 -- Preserve administrative CRUD while requiring withdrawals to use the RPC below.
