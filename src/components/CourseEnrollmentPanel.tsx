@@ -16,7 +16,7 @@ export const CourseEnrollmentPanel: React.FC = () => {
     if (userError || !userData.user) {setError('يرجى تسجيل الدخول أولاً.');setBusy(false);return;}
     const [courseResult,enrollmentResult] = await Promise.all([
       client.from('courses').select('id,title,description,starts_at,ends_at,location,status,capacity').eq('status','open').order('starts_at',{ascending:true}),
-      client.from('course_enrollments').select('id,course_id,status,enrolled_at').eq('user_id',userData.user.id).order('enrolled_at',{ascending:false})
+      client.from('course_enrollments').select('id,course_id,status,enrolled_at,course:courses(title)').eq('user_id',userData.user.id).order('enrolled_at',{ascending:false})
     ]);
     if (courseResult.error) setError(courseResult.error.message); else setCourses(courseResult.data||[]);
     if (enrollmentResult.error) setError(enrollmentResult.error.message); else setEnrollments(enrollmentResult.data||[]);
@@ -67,6 +67,6 @@ export const CourseEnrollmentPanel: React.FC = () => {
       })}
       {!courses.length&&<p className="text-sm text-slate-400">لا توجد دورات مفتوحة للتسجيل حالياً.</p>}
     </div>
-    <div className="border-t border-cyan-950 pt-3"><h4 className="font-bold text-sm mb-2">سجل تسجيلاتي</h4>{enrollments.length?enrollments.map(e=><p key={e.id} className="text-xs text-slate-300 py-1">{courses.find(c=>c.id===e.course_id)?.title||'دورة سابقة'} — {statusLabel[e.status]||e.status}</p>):<p className="text-xs text-slate-500">لم تسجل في أي دورة بعد.</p>}</div>
+    <div className="border-t border-cyan-950 pt-3"><h4 className="font-bold text-sm mb-2">سجل تسجيلاتي</h4>{enrollments.length?enrollments.map(e=><p key={e.id} className="text-xs text-slate-300 py-1">{e.course?.title||courses.find(c=>c.id===e.course_id)?.title||'دورة سابقة'} — {statusLabel[e.status]||e.status}</p>):<p className="text-xs text-slate-500">لم تسجل في أي دورة بعد.</p>}</div>
   </section>;
 };
