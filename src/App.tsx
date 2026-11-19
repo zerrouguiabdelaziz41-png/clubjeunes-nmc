@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { lazy, Suspense, useState } from 'react';
 import { Navbar } from './components/Navbar.tsx';
 import { Hero } from './components/Hero.tsx';
 import { ActivitiesSection } from './components/ActivitiesSection.tsx';
@@ -17,19 +17,21 @@ import {
   LegalModal,
 } from './components/Modals.tsx';
 import { ActivityItem, EventItem, NewsItem, FEATURED_EVENT, NEWS, ACTIVITIES } from './data/clubData.ts';
-import { ContactPage } from './components/ContactPage.tsx';
-import { EventsPage } from './components/EventsPage.tsx';
-import { NewsPage } from './components/NewsPage.tsx';
-import { AboutPage } from './components/AboutPage.tsx';
-import { MembershipPage } from './components/MembershipPage.tsx';
-import { AccountPage } from './components/AccountPage.tsx';
-import { VerificationPage } from './components/VerificationPage.tsx';
-import { PublicClubContent } from './components/PublicClubContent.tsx';
-import { PublishedActivitiesPanel } from './components/PublishedActivitiesPanel.tsx';
+const ContactPage = lazy(() => import('./components/ContactPage.tsx').then((module) => ({ default: module.ContactPage })));
+const EventsPage = lazy(() => import('./components/EventsPage.tsx').then((module) => ({ default: module.EventsPage })));
+const NewsPage = lazy(() => import('./components/NewsPage.tsx').then((module) => ({ default: module.NewsPage })));
+const AboutPage = lazy(() => import('./components/AboutPage.tsx').then((module) => ({ default: module.AboutPage })));
+const MembershipPage = lazy(() => import('./components/MembershipPage.tsx').then((module) => ({ default: module.MembershipPage })));
+const AccountPage = lazy(() => import('./components/AccountPage.tsx').then((module) => ({ default: module.AccountPage })));
+const VerificationPage = lazy(() => import('./components/VerificationPage.tsx').then((module) => ({ default: module.VerificationPage })));
+const PublicClubContent = lazy(() => import('./components/PublicClubContent.tsx').then((module) => ({ default: module.PublicClubContent })));
+const PublishedActivitiesPanel = lazy(() => import('./components/PublishedActivitiesPanel.tsx').then((module) => ({ default: module.PublishedActivitiesPanel })));
 import { MembershipCardModal, MemberData, DEFAULT_MEMBER } from './components/MembershipCardModal.tsx';
 import { SupabaseModal } from './components/SupabaseModal.tsx';
 import { Image as ImageIcon, Sparkles } from 'lucide-react';
 import { Language, TRANSLATIONS } from './data/translations.ts';
+
+// Load secondary pages and data-heavy account modules only when users open them.
 
 export default function App() {
   const [activeTab, setActiveTab] = useState(() => new URLSearchParams(window.location.search).get('view') === 'account' ? 'account' : 'home');
@@ -176,6 +178,7 @@ export default function App() {
 
       {/* Main Page Content */}
       <main className="w-full">
+        <Suspense fallback={<div className="min-h-[45vh] grid place-items-center text-cyan-200" role="status">جارٍ تحميل الصفحة…</div>}>
         {activeTab === 'about' ? (
           <AboutPage
             onBackToHome={() => {
@@ -362,6 +365,7 @@ export default function App() {
             </section>
           </>
         )}
+        </Suspense>
       </main>
 
       {/* Footer */}
