@@ -34,17 +34,38 @@ export function isPlaceholderKey(key: string): boolean {
 }
 
 /**
- * Check if the key is a privileged secret key that must never be exposed to the browser
+ * Detect legacy Supabase service-role JWTs by inspecting the untrusted role claim.
+ * This is classification only; the claim is never used to authorize requests.
+ */
+function hasLegacyServiceRoleClaim(key: string): boolean {
+  const parts = key.trim().split('.');
+  if (parts.length !== 3 || !parts[1]) return false;
+
+  try {
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=');
+    const claims = JSON.parse(atob(padded)) as { role?: unknown };
+    return claims?.role === 'service_role';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Check if the key is a privileged secret key that must never be exposed to the browser.
+ * Covers modern secret-key prefixes and legacy JWT-based service_role keys.
  */
 export function isSecretKey(key: string): boolean {
-  const lower = key.trim().toLowerCase();
+  const normalized = key.trim();
+  const lower = normalized.toLowerCase();
   return (
     lower.includes('service_role') ||
     lower.includes('service-role') ||
     lower.startsWith('sbp_') || // Supabase Personal Access Tokens are not browser API keys.
     lower.startsWith('sb_sec_') ||
     lower.startsWith('sb_secret_') ||
-    lower.startsWith('sbs_')
+    lower.startsWith('sbs_') ||
+    hasLegacyServiceRoleClaim(normalized)
   );
 }
 
