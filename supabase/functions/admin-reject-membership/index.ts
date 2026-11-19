@@ -58,7 +58,7 @@ async function collectUserFiles(
   return paths;
 }
 
-async function removeUserFiles(admin: ReturnType<typeof createClient>, userId: string) {
+async function removeUserFiles(admin: SupabaseClient<any, "public", any, any, any>, userId: string) {
   // Explicit allowlist: rejection may remove only the applicant's avatar folder.
   // Identity documents and all other buckets are intentionally excluded.
   const bucketId = "avatars";
