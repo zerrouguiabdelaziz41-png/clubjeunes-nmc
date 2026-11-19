@@ -1,4 +1,4 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -19,7 +19,7 @@ function isUuid(value: unknown): value is string {
 }
 
 async function collectUserFiles(
-  admin: ReturnType<typeof createClient>,
+  admin: SupabaseClient<any, "public", any, any, any>,
   bucketId: string,
   userId: string,
   folder = userId,
