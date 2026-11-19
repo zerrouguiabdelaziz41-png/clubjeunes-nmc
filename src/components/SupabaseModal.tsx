@@ -19,6 +19,7 @@ import {
 import {
   getSupabaseUrl,
   getSupabaseAnonKey,
+  isSecretKey,
   setLocalSupabaseAnonKey,
   testSupabaseConnection,
   ConnectionTestResult,
@@ -66,9 +67,16 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({ isOpen, onClose })
   };
 
   const handleSaveAndTest = (newKey: string) => {
+    if (isSecretKey(newKey)) {
+      // Do not retain a privileged key in component state or offer it in the env snippet.
+      setAnonKey('');
+      setLocalSupabaseAnonKey('');
+      void handleTest(newKey);
+      return;
+    }
     setAnonKey(newKey);
     setLocalSupabaseAnonKey(newKey);
-    handleTest(newKey);
+    void handleTest(newKey);
   };
 
   const copyEnvSnippet = () => {
