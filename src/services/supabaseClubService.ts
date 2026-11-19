@@ -118,7 +118,8 @@ export const SupabaseClubService = {
         email: '',
         city: '',
         avatar: '',
-        // Public verification intentionally returns no account-creation timestamp.\n        issueDate: '',
+        // Public verification intentionally returns no account-creation timestamp.
+        issueDate: '',
         expiryDate: '',
         status: 'active',
       },
