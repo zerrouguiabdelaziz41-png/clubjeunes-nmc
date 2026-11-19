@@ -9,7 +9,7 @@ interface QRCodeBadgeProps {
   showClickHint?: boolean;
 }
 
-/** Renders a standards-compliant QR code. The encoded value is the member UUID;
+/** Renders a standards-compliant QR code containing the public membership number;
  * it is an identifier only, never an authentication token or proof of approval.
  */
 export const QRCodeBadge: React.FC<QRCodeBadgeProps> = ({
