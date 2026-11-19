@@ -8,12 +8,9 @@ DROP POLICY IF EXISTS course_enrollments_self_withdraw ON public.course_enrollme
 DROP POLICY IF EXISTS course_enrollments_update_self_or_admin ON public.course_enrollments;
 DROP POLICY IF EXISTS course_enrollments_admin_manage ON public.course_enrollments;
 
--- Preserve administrative CRUD while requiring withdrawals to use the RPC below.
-CREATE POLICY course_enrollments_admin_insert
-ON public.course_enrollments
-FOR INSERT TO authenticated
-WITH CHECK ((SELECT private.is_active_nmc_admin()));
-
+-- The existing course_enrollments_insert_self_or_admin and
+-- course_enrollments_admin_delete policies already preserve administrator access.
+-- Recreate only the UPDATE policy because the former broad policy is removed.
 CREATE POLICY course_enrollments_admin_update
 ON public.course_enrollments
 FOR UPDATE TO authenticated
@@ -22,11 +19,6 @@ WITH CHECK (
   (SELECT private.is_active_nmc_admin())
   AND status <> 'withdrawn'
 );
-
-CREATE POLICY course_enrollments_admin_delete
-ON public.course_enrollments
-FOR DELETE TO authenticated
-USING ((SELECT private.is_active_nmc_admin()));
 
 CREATE OR REPLACE FUNCTION public.withdraw_course_enrollment(p_enrollment_id uuid)
 RETURNS TABLE (enrollment_id uuid, enrollment_status text)
