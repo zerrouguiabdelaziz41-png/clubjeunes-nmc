@@ -11,11 +11,12 @@
 2. افتح مجلد المشروع في Terminal أو PowerShell.
 3. نفّذ `npm install`.
 4. انسخ `.env.example` إلى `.env.local`.
-5. افتح `.env.local` وضع المفتاح العام في `VITE_SUPABASE_PUBLISHABLE_KEY`.
-6. نفّذ `npm run dev` وافتح الرابط الذي يظهر.
+5. افتح `.env.local` وحدد رابط مشروع التطوير/الاختبار في `VITE_SUPABASE_URL`، ثم ضع المفتاح العام المطابق له في `VITE_SUPABASE_PUBLISHABLE_KEY`.
+6. لا تستخدم رابط الإنتاج أو بيانات أعضائه للاختبارات المحلية. لا يختار التطبيق مشروعاً افتراضياً عند غياب الرابط.
+7. نفّذ `npm run dev` وافتح الرابط الذي يظهر.
 
 ## الأمان
-- لا تضع `service_role` أو `sb_secret` في ملفات الواجهة أو Google AI Studio أو Cloud Run frontend.
+- لا تضع `service_role` أو `sb_secret` أو رموز Supabase الشخصية التي تبدأ بـ `sbp_` في ملفات الواجهة أو Google AI Studio أو Cloud Run frontend.
 - لا تغيّر أدوار الحسابات من المتصفح. مصدر الدور هو `profiles.role` وسياسات قاعدة البيانات.
 - مراجعة طلبات العضوية والأنشطة تتم عبر دوال RPC الإدارية المحمية.
 
