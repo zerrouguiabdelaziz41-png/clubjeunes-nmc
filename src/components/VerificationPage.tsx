@@ -55,9 +55,11 @@ export const VerificationPage: React.FC<VerificationPageProps> = ({
         setVerifySource(res.source);
         setNotFound(false);
       } else {
+        setCurrentMember(DEFAULT_MEMBER);
         setNotFound(true);
       }
     } catch {
+      setCurrentMember(DEFAULT_MEMBER);
       setNotFound(true);
     } finally {
       setIsSearching(false);
