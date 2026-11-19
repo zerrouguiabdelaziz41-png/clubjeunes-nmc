@@ -114,6 +114,7 @@ export function setLocalSupabaseAnonKey(key: string): void {
  * Create or reuse the Supabase client instance
  */
 let cachedClient: SupabaseClient | null = null;
+let cachedUrlUsed = '';
 let cachedKeyUsed = '';
 
 export function getSupabaseClient(): SupabaseClient | null {
@@ -124,7 +125,9 @@ export function getSupabaseClient(): SupabaseClient | null {
     return null;
   }
 
-  if (cachedClient && cachedKeyUsed === anonKey) {
+  // The project URL is part of the client identity too. Reuse is safe only
+  // when both the URL and public key still match the active configuration.
+  if (cachedClient && cachedUrlUsed === url && cachedKeyUsed === anonKey) {
     return cachedClient;
   }
 
@@ -136,6 +139,7 @@ export function getSupabaseClient(): SupabaseClient | null {
         detectSessionInUrl: true,
       },
     });
+    cachedUrlUsed = url;
     cachedKeyUsed = anonKey;
     return cachedClient;
   } catch (error) {
