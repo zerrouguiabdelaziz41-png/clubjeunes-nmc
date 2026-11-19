@@ -265,7 +265,9 @@ export const AdminModulesPanel: React.FC = () => {
   const updateCourseEnrollment = async (id:string,status:string) => {
     if (!client) return;
     setBusy(true);setError('');setNotice('');
-    const {error:e} = await client.from('course_enrollments').update({status}).eq('id',id);
+    const {error:e} = status==='withdrawn'
+      ? await client.rpc('withdraw_course_enrollment',{p_enrollment_id:id})
+      : await client.from('course_enrollments').update({status}).eq('id',id);
     if (e) setError(e.message); else {setNotice('تم تحديث حالة تسجيل المتدرب.');await load();}
     setBusy(false);
   };
