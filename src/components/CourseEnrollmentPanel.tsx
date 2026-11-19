@@ -41,8 +41,9 @@ export const CourseEnrollmentPanel: React.FC = () => {
   const withdraw = async (id:string) => {
     if (!client || !window.confirm('هل تريد إلغاء تسجيلك في هذه الدورة؟')) return;
     setBusy(true);setError('');
-    const {error:e} = await client.from('course_enrollments').update({status:'withdrawn'}).eq('id',id);
-    if (e) setError(e.message); else {setNotice('تم إلغاء تسجيلك.');await load();}
+    const {error:e} = await client.rpc('withdraw_course_enrollment',{p_enrollment_id:id});
+    if (e) setError(e.code==='55000'?'لا يمكن إلغاء هذا التسجيل بعد اكتماله.':'تعذر إلغاء التسجيل. يرجى المحاولة مجدداً.');
+    else {setNotice('تم إلغاء تسجيلك وتحديث قائمة الانتظار.');await load();}
     setBusy(false);
   };
   const statusLabel:Record<string,string> = {enrolled:'مسجل',waitlisted:'قائمة الانتظار',completed:'أكملت الدورة',withdrawn:'ملغى'};
@@ -60,7 +61,7 @@ export const CourseEnrollmentPanel: React.FC = () => {
           {course.starts_at&&<p className="text-xs text-cyan-200 flex items-center gap-2"><CalendarDays size={14}/>{new Date(course.starts_at).toLocaleString('ar-DZ')}</p>}
           {course.location&&<p className="text-xs text-slate-400 flex items-center gap-2"><MapPin size={14}/>{course.location}</p>}
           {course.capacity!==null&&course.capacity!==undefined&&<p className="text-xs text-slate-400">السعة القصوى: {course.capacity} مشاركاً</p>}
-          {enrollment ? <div className="flex items-center justify-between gap-2"><span className={"text-xs "+(enrollment.status==='waitlisted'?'text-amber-300':'text-emerald-300')}>{statusLabel[enrollment.status]||enrollment.status}</span>{enrollment.status!=='withdrawn'&&<button disabled={busy} onClick={()=>void withdraw(enrollment.id)} className="text-xs text-rose-300">إلغاء التسجيل</button>}</div>
+          {enrollment ? <div className="flex items-center justify-between gap-2"><span className={"text-xs "+(enrollment.status==='waitlisted'?'text-amber-300':'text-emerald-300')}>{statusLabel[enrollment.status]||enrollment.status}</span>{['enrolled','waitlisted'].includes(enrollment.status)&&<button disabled={busy} onClick={()=>void withdraw(enrollment.id)} className="text-xs text-rose-300">إلغاء التسجيل</button>}</div>
           : <button disabled={busy} onClick={()=>void enroll(course.id)} className="rounded-lg bg-cyan-800 px-4 py-2 text-sm font-bold disabled:opacity-50">التسجيل في الدورة</button>}
         </article>;
       })}
