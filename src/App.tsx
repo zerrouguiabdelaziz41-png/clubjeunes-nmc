@@ -6,16 +6,14 @@ import { JoinCard } from './components/JoinCard.tsx';
 import { NewsCard } from './components/NewsCard.tsx';
 import { EventsCard } from './components/EventsCard.tsx';
 import { Footer } from './components/Footer.tsx';
-import {
-  JoinModal,
-  EventModal,
-  ActivityModal,
-  NewsModal,
-  VideoModal,
-  AboutModal,
-  ContactModal,
-  LegalModal,
-} from './components/Modals.tsx';
+const JoinModal = lazy(() => import('./components/Modals.tsx').then((module) => ({ default: module.JoinModal })));
+const EventModal = lazy(() => import('./components/Modals.tsx').then((module) => ({ default: module.EventModal })));
+const ActivityModal = lazy(() => import('./components/Modals.tsx').then((module) => ({ default: module.ActivityModal })));
+const NewsModal = lazy(() => import('./components/Modals.tsx').then((module) => ({ default: module.NewsModal })));
+const VideoModal = lazy(() => import('./components/Modals.tsx').then((module) => ({ default: module.VideoModal })));
+const AboutModal = lazy(() => import('./components/Modals.tsx').then((module) => ({ default: module.AboutModal })));
+const ContactModal = lazy(() => import('./components/Modals.tsx').then((module) => ({ default: module.ContactModal })));
+const LegalModal = lazy(() => import('./components/Modals.tsx').then((module) => ({ default: module.LegalModal })));
 import { ActivityItem, EventItem, NewsItem, FEATURED_EVENT, NEWS, ACTIVITIES } from './data/clubData.ts';
 const ContactPage = lazy(() => import('./components/ContactPage.tsx').then((module) => ({ default: module.ContactPage })));
 const EventsPage = lazy(() => import('./components/EventsPage.tsx').then((module) => ({ default: module.EventsPage })));
@@ -586,6 +584,7 @@ export default function App() {
       )}
 
       {/* Interactive Modals */}
+      <Suspense fallback={null}>
       <JoinModal
         isOpen={isJoinOpen}
         onClose={() => setIsJoinOpen(false)}
