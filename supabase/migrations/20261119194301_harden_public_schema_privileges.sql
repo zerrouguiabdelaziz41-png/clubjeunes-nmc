@@ -8,8 +8,6 @@
 -- New objects created by either project schema owner must receive explicit
 -- API grants in the migration that creates them.
 
-BEGIN;
-
 -- anon has no write policy in the current public schema. Remove all table
 -- privileges, then restore SELECT only for relations with public-read RLS.
 REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM anon;
@@ -56,4 +54,3 @@ ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
 ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public
   REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC, anon, authenticated;
 
-COMMIT;
