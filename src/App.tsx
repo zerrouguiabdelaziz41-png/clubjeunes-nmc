@@ -585,59 +585,59 @@ export default function App() {
 
       {/* Interactive Modals */}
       <Suspense fallback={null}>
-      <JoinModal
-        isOpen={isJoinOpen}
+      {isJoinOpen && <JoinModal
+        isOpen={true}
         onClose={() => setIsJoinOpen(false)}
         language={currentLanguage}
-      />
+      />}
 
-      <EventModal
+      {selectedEvent && <EventModal
         event={selectedEvent}
-        isOpen={!!selectedEvent}
+        isOpen={true}
         onClose={() => setSelectedEvent(null)}
         language={currentLanguage}
-      />
+      />}
 
-      <ActivityModal
+      {selectedActivity && <ActivityModal
         activity={selectedActivity}
-        isOpen={!!selectedActivity}
+        isOpen={true}
         onClose={() => setSelectedActivity(null)}
         onOpenJoin={() => setIsJoinOpen(true)}
         language={currentLanguage}
-      />
+      />}
 
-      <NewsModal
+      {selectedNews && <NewsModal
         news={selectedNews}
-        isOpen={!!selectedNews}
+        isOpen={true}
         onClose={() => setSelectedNews(null)}
         language={currentLanguage}
-      />
+      />}
 
-      <VideoModal
-        isOpen={isVideoOpen}
+      {isVideoOpen && <VideoModal
+        isOpen={true}
         onClose={() => setIsVideoOpen(false)}
         language={currentLanguage}
-      />
+      />}
 
-      <AboutModal
-        isOpen={isAboutOpen}
+      {isAboutOpen && <AboutModal
+        isOpen={true}
         onClose={() => setIsAboutOpen(false)}
         onOpenJoin={() => setIsJoinOpen(true)}
         language={currentLanguage}
-      />
+      />}
 
-      <ContactModal
-        isOpen={isContactOpen}
+      {isContactOpen && <ContactModal
+        isOpen={true}
         onClose={() => setIsContactOpen(false)}
         language={currentLanguage}
-      />
+      />}
 
-      <LegalModal
+      {legalType && <LegalModal
         type={legalType}
-        isOpen={!!legalType}
+        isOpen={true}
         onClose={() => setLegalType(null)}
         language={currentLanguage}
-      />
+      />}
 
       {/* Digital Membership Card Modal */}
       <MembershipCardModal
