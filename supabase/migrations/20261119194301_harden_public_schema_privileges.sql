@@ -27,30 +27,37 @@ REVOKE TRUNCATE, REFERENCES, TRIGGER, MAINTAIN
 ON ALL TABLES IN SCHEMA public
 FROM authenticated;
 
--- The only public-schema sequence is used by the server-side membership
--- audit workflow. service_role retains its existing privileges.
+-- The membership history sequence is written through the two administrator
+-- SECURITY DEFINER functions owned by postgres. API roles do not need direct
+-- sequence access; service_role keeps its existing privileges.
 REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public
 FROM anon, authenticated;
 
--- Stop future tables created by either schema owner from being exposed
--- automatically. Migrations creating API-backed tables must GRANT only
--- the privileges required by their clients.
+-- Stop future tables created by either project schema owner from being
+-- exposed automatically. Migrations creating API-backed tables must GRANT
+-- only the privileges required by their clients.
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
   REVOKE ALL PRIVILEGES ON TABLES FROM anon, authenticated;
 ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public
   REVOKE ALL PRIVILEGES ON TABLES FROM anon, authenticated;
 
--- Public clients do not need direct sequence access.
+-- Public clients do not need direct sequence access on future objects.
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
   REVOKE ALL PRIVILEGES ON SEQUENCES FROM anon, authenticated;
 ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public
   REVOKE ALL PRIVILEGES ON SEQUENCES FROM anon, authenticated;
 
--- Function execution is granted explicitly by each migration. In
--- particular, the two intentional public RPCs keep their current ACLs;
--- this only changes defaults for functions created in the future.
-ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
-  REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC, anon, authenticated;
-ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public
-  REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC, anon, authenticated;
+-- PostgreSQL's default PUBLIC EXECUTE grant is global: a per-schema REVOKE
+-- cannot cancel it. Remove that default for functions created by either
+-- project schema owner. This applies across schemas for those owners.
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres
+  REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
+ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin
+  REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
 
+-- Also remove the explicit anon/authenticated defaults in public. Existing
+-- functions, including the two intentional public RPCs, are not changed.
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+  REVOKE EXECUTE ON FUNCTIONS FROM anon, authenticated;
+ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public
+  REVOKE EXECUTE ON FUNCTIONS FROM anon, authenticated;
